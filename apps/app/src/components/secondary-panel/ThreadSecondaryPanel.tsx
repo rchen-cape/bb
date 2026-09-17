@@ -692,173 +692,182 @@ function ThreadSecondaryPanelContent({
     const isSurfaceTerminalActive =
       activeSurfaceModel?.kind === "terminal" && hasActiveSurfaceTab;
 
+    const hasCollapsedTrafficLightReserve =
+      reserveLeadingChrome &&
+      collapsedPanelTrafficLightReserveClassName !== false;
+
     return (
       <ImageTabLightboxProvider
         activeTabId={activeSurfaceTabId}
         tabs={surfaceTabs}
       >
-        <div
-          className={getSecondaryPanelChromeStackClassName(
-            showsSurfaceDiffToolbar,
-          )}
-        >
+        <div className="flex min-h-0 flex-1 overflow-hidden">
           <div
-            data-testid="thread-secondary-panel-top-chrome"
             className={cn(
-              CHROME_ROW_CLASS,
-              "min-w-0 justify-between gap-2 px-4",
-              reservesCompactSidebarToggle && "pl-14",
-              usesDesktopChrome && usesWindowChrome && MACOS_WINDOW_DRAG_CLASS,
-              usesDesktopChrome &&
-                usesWindowChrome &&
-                MACOS_CHROME_CONTROL_AXIS_CLASS,
+              "flex w-10 shrink-0 flex-col items-center gap-1 overflow-hidden border-r border-border-seam bg-sidebar py-1",
+              `transition-[padding] ${PANEL_COLLAPSE_TRANSITION_CLASS}`,
+              hasCollapsedTrafficLightReserve && "pt-[104px]",
+              reservesCompactSidebarToggle && "pt-14",
             )}
+            data-sidebar-split-tab-group={paneId ?? undefined}
+            role="toolbar"
+            aria-label="Right panel views"
           >
-            <div
-              className={cn(
-                "flex min-w-0 flex-1 items-center gap-1",
-                `transition-[padding] ${PANEL_COLLAPSE_TRANSITION_CLASS}`,
-                reserveLeadingChrome &&
-                  collapsedPanelTrafficLightReserveClassName,
-              )}
-              data-sidebar-split-tab-group={paneId ?? undefined}
-              role="toolbar"
-              aria-label="Right panel views"
-            >
-              {renderPanelTabGroup({
-                activeSurfaceFixedTab,
-                activeSurfaceTabId,
-                surfaceTabs,
-                fixedSurfaceTabs,
-                newTabAriaLabel:
-                  onRemoveSplit === undefined
-                    ? "Open new tab"
-                    : "Open new tab in this pane",
-                onBeginTabDrag,
-                onSurfaceTabReorder,
-                reserveNewTabButton: reserveNewTabControl,
-                showNewTabButton: showNewTabControl,
-              })}
-            </div>
-            {showOuterControls ||
-            onRemoveSplit ||
-            usesPaneArrangementControl ? (
-              <div
-                className="flex min-w-0 shrink-0 items-center gap-1"
-                onPointerDown={(event) => event.stopPropagation()}
-              >
-                {usesPaneArrangementControl || showOuterControls
-                  ? renderConversationCollapseButton({
-                      isFullScreen,
-                      onMoveActiveTabToSide,
-                      onToggleFullScreen,
-                      usesPaneArrangementControl,
-                    })
-                  : null}
-                {renderRemoveSplitButton(onRemoveSplit)}
-                {showOuterControls &&
-                (renderAsDrawer || inlinePanelToggle === "button")
-                  ? renderHidePanelButton()
-                  : null}
-              </div>
-            ) : null}
+            {renderPanelTabGroup({
+              activeSurfaceFixedTab,
+              activeSurfaceTabId,
+              surfaceTabs,
+              fixedSurfaceTabs,
+              newTabAriaLabel:
+                onRemoveSplit === undefined
+                  ? "Open new tab"
+                  : "Open new tab in this pane",
+              onBeginTabDrag,
+              onSurfaceTabReorder,
+              reserveNewTabButton: reserveNewTabControl,
+              showNewTabButton: showNewTabControl,
+            })}
           </div>
-          {showsSurfaceDiffToolbar ? (
-            <GitDiffToolbar
-              selectionValue={gitDiffSelectValue}
-              selectionOptions={gitDiffSelectOptions}
-              onSelectionChange={onGitDiffSelectionChange}
-              isSelectorDisabled={
-                isDiffFilesLoading || gitDiffTarget === undefined
-              }
-              stats={gitDiffStats}
-              isTruncated={isGitDiffTruncated}
-              areAllFilesCollapsed={areAllCollapsed}
-              isCollapseAllDisabled={!hasFiles || isDiffFilesLoading}
-              onToggleAllCollapsed={toggleAllCollapsed}
-              displayMode={gitDiffDisplayMode}
-              onDisplayModeChange={handleGitDiffDisplayModeChange}
-              lineOverflowMode={gitDiffLineOverflowMode}
-              onLineOverflowModeChange={setGitDiffLineOverflowMode}
-            />
-          ) : null}
-        </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar">
-          {browserSurface}
-          {isBrowserSurfaceActive ? null : hasActiveSurfaceTab ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div
-              className={
-                isSurfaceTerminalActive || surfaceContentFillsRegion
-                  ? "min-h-0 flex-1 overflow-hidden"
-                  : cn(PANEL_SCROLL_SLOT_CLASS, "pb-3")
-              }
-              data-file-preview-scroll-container={
-                isSurfaceTerminalActive || surfaceContentFillsRegion
-                  ? undefined
-                  : ""
-              }
+              className={getSecondaryPanelChromeStackClassName(
+                showsSurfaceDiffToolbar,
+              )}
             >
-              {surfaceContent ?? (
-                <EmptyStatePanel className="mx-4 rounded-lg">
-                  No file preview content provided.
+              <div
+                data-testid="thread-secondary-panel-top-chrome"
+                className={cn(
+                  CHROME_ROW_CLASS,
+                  "min-w-0 justify-end gap-2 px-4",
+                  usesDesktopChrome &&
+                    usesWindowChrome &&
+                    MACOS_WINDOW_DRAG_CLASS,
+                  usesDesktopChrome &&
+                    usesWindowChrome &&
+                    MACOS_CHROME_CONTROL_AXIS_CLASS,
+                )}
+              >
+                {showOuterControls ||
+                onRemoveSplit ||
+                usesPaneArrangementControl ? (
+                  <div
+                    className="flex min-w-0 shrink-0 items-center gap-1"
+                    onPointerDown={(event) => event.stopPropagation()}
+                  >
+                    {usesPaneArrangementControl || showOuterControls
+                      ? renderConversationCollapseButton({
+                          isFullScreen,
+                          onMoveActiveTabToSide,
+                          onToggleFullScreen,
+                          usesPaneArrangementControl,
+                        })
+                      : null}
+                    {renderRemoveSplitButton(onRemoveSplit)}
+                    {showOuterControls &&
+                    (renderAsDrawer || inlinePanelToggle === "button")
+                      ? renderHidePanelButton()
+                      : null}
+                  </div>
+                ) : null}
+              </div>
+              {showsSurfaceDiffToolbar ? (
+                <GitDiffToolbar
+                  selectionValue={gitDiffSelectValue}
+                  selectionOptions={gitDiffSelectOptions}
+                  onSelectionChange={onGitDiffSelectionChange}
+                  isSelectorDisabled={
+                    isDiffFilesLoading || gitDiffTarget === undefined
+                  }
+                  stats={gitDiffStats}
+                  isTruncated={isGitDiffTruncated}
+                  areAllFilesCollapsed={areAllCollapsed}
+                  isCollapseAllDisabled={!hasFiles || isDiffFilesLoading}
+                  onToggleAllCollapsed={toggleAllCollapsed}
+                  displayMode={gitDiffDisplayMode}
+                  onDisplayModeChange={handleGitDiffDisplayModeChange}
+                  lineOverflowMode={gitDiffLineOverflowMode}
+                  onLineOverflowModeChange={setGitDiffLineOverflowMode}
+                />
+              ) : null}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-sidebar">
+              {browserSurface}
+              {isBrowserSurfaceActive ? null : hasActiveSurfaceTab ? (
+                <div
+                  className={
+                    isSurfaceTerminalActive || surfaceContentFillsRegion
+                      ? "min-h-0 flex-1 overflow-hidden"
+                      : cn(PANEL_SCROLL_SLOT_CLASS, "pb-3")
+                  }
+                  data-file-preview-scroll-container={
+                    isSurfaceTerminalActive || surfaceContentFillsRegion
+                      ? undefined
+                      : ""
+                  }
+                >
+                  {surfaceContent ?? (
+                    <EmptyStatePanel className="mx-4 rounded-lg">
+                      No file preview content provided.
+                    </EmptyStatePanel>
+                  )}
+                </div>
+              ) : activeSurfaceFixedTab !== undefined &&
+                fixedSurfaceContent !== undefined ? (
+                <div
+                  className={
+                    fixedSurfaceContentFillsRegion
+                      ? "flex min-h-0 flex-1 flex-col overflow-hidden"
+                      : cn(PANEL_SCROLL_SLOT_CLASS, "p-4 pb-3")
+                  }
+                >
+                  {fixedSurfaceContent}
+                </div>
+              ) : isSurfaceDiffEligibilityPending ? (
+                <EmptyStatePanel className="m-4 rounded-lg" role="status">
+                  {resolvedGitDiffTabStatus === "error" ? (
+                    <div className="flex flex-col items-center gap-3 text-center">
+                      <span>
+                        Could not determine whether this workspace uses Git.
+                      </span>
+                      {onRetryGitDiffEligibility ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={onRetryGitDiffEligibility}
+                        >
+                          Retry
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    "Checking Git support…"
+                  )}
+                </EmptyStatePanel>
+              ) : isSurfaceDiffActive ? (
+                <GitDiffTabContent
+                  environmentId={environmentId}
+                  target={gitDiffTarget}
+                  isPanelOpen={isLayoutOpen}
+                  gitDiffPresentation={gitDiffPresentation}
+                  onClearPendingGitDiffIntent={onClearPendingGitDiffIntent}
+                  onOpenFileInEditor={onOpenFileInEditor}
+                  onOpenFilePreview={onOpenFilePreview}
+                  onSelectionAddToChat={onSelectionAddToChat}
+                  pendingGitDiffScrollPath={pendingGitDiffScrollPath}
+                  workspaceRootPath={workspaceRootPath}
+                />
+              ) : activeSurfaceFixedTab?.tab.kind === "thread-info" ? (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {metadataContent}
+                </div>
+              ) : (
+                <EmptyStatePanel className="m-4 rounded-lg">
+                  This panel view is unavailable.
                 </EmptyStatePanel>
               )}
             </div>
-          ) : activeSurfaceFixedTab !== undefined &&
-            fixedSurfaceContent !== undefined ? (
-            <div
-              className={
-                fixedSurfaceContentFillsRegion
-                  ? "flex min-h-0 flex-1 flex-col overflow-hidden"
-                  : cn(PANEL_SCROLL_SLOT_CLASS, "p-4 pb-3")
-              }
-            >
-              {fixedSurfaceContent}
-            </div>
-          ) : isSurfaceDiffEligibilityPending ? (
-            <EmptyStatePanel className="m-4 rounded-lg" role="status">
-              {resolvedGitDiffTabStatus === "error" ? (
-                <div className="flex flex-col items-center gap-3 text-center">
-                  <span>
-                    Could not determine whether this workspace uses Git.
-                  </span>
-                  {onRetryGitDiffEligibility ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={onRetryGitDiffEligibility}
-                    >
-                      Retry
-                    </Button>
-                  ) : null}
-                </div>
-              ) : (
-                "Checking Git support…"
-              )}
-            </EmptyStatePanel>
-          ) : isSurfaceDiffActive ? (
-            <GitDiffTabContent
-              environmentId={environmentId}
-              target={gitDiffTarget}
-              isPanelOpen={isLayoutOpen}
-              gitDiffPresentation={gitDiffPresentation}
-              onClearPendingGitDiffIntent={onClearPendingGitDiffIntent}
-              onOpenFileInEditor={onOpenFileInEditor}
-              onOpenFilePreview={onOpenFilePreview}
-              onSelectionAddToChat={onSelectionAddToChat}
-              pendingGitDiffScrollPath={pendingGitDiffScrollPath}
-              workspaceRootPath={workspaceRootPath}
-            />
-          ) : activeSurfaceFixedTab?.tab.kind === "thread-info" ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              {metadataContent}
-            </div>
-          ) : (
-            <EmptyStatePanel className="m-4 rounded-lg">
-              This panel view is unavailable.
-            </EmptyStatePanel>
-          )}
+          </div>
         </div>
       </ImageTabLightboxProvider>
     );
@@ -972,6 +981,28 @@ function ThreadSecondaryPanelContent({
     })
   );
 
+  const collapsedRail =
+    !renderAsDrawer && !isOpen && hostLayout === null ? (
+      <div
+        className="fixed bottom-0 right-0 z-30 flex w-10 flex-col items-center gap-1 overflow-y-auto border-l border-border-seam bg-sidebar py-1"
+        style={{ top: "var(--bb-app-chrome-row-height)" }}
+        role="toolbar"
+        aria-label="Right panel views"
+      >
+        {renderPanelTabGroup({
+          activeSurfaceFixedTab: activeFixedTab,
+          activeSurfaceTabId:
+            activeRenderableTab?.tab.id ?? activeTab?.id ?? null,
+          surfaceTabs: tabs,
+          fixedSurfaceTabs: fixedTabs,
+          newTabAriaLabel: "Open new tab",
+          onSurfaceTabReorder: onTabReorder,
+          reserveNewTabButton: false,
+          showNewTabButton,
+        })}
+      </div>
+    ) : null;
+
   const asideMarkup = (
     <aside
       ref={panelRef}
@@ -1014,6 +1045,7 @@ function ThreadSecondaryPanelContent({
 
   return (
     <>
+      {collapsedRail}
       <SecondaryPanelResizeHandle
         isOpen={isOpen}
         isConversationCollapsed={isConversationCollapsed}

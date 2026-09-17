@@ -101,6 +101,7 @@ export function createFileOpenerOriginalTab(
     file.source.kind === "workspace"
   ) {
     return {
+      colorTag: null,
       ...owner.tab,
       environmentId: file.source.environmentId,
       id,
@@ -111,6 +112,7 @@ export function createFileOpenerOriginalTab(
   }
   if (owner.kind === "host-file-preview" && file.source.kind === "host") {
     return {
+      colorTag: null,
       ...owner.tab,
       environmentId: file.source.environmentId,
       hostId: file.source.experimental_hostId ?? null,
@@ -125,6 +127,7 @@ export function createFileOpenerOriginalTab(
     file.source.kind === "thread-storage"
   ) {
     return {
+      colorTag: null,
       ...owner.tab,
       environmentId: file.source.environmentId,
       id,

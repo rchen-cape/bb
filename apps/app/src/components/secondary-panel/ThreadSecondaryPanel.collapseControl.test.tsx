@@ -197,8 +197,8 @@ describe("ThreadSecondaryPanel compact file content", () => {
     expect(screen.getByText("Recovered tab body")).toBeTruthy();
     expect(
       screen
-        .getByTestId("thread-secondary-panel-top-chrome")
-        .classList.contains("pl-14"),
+        .getByRole("toolbar", { name: "Right panel views" })
+        .classList.contains("pt-14"),
     ).toBe(true);
   });
 

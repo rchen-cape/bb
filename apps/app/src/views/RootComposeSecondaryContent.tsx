@@ -95,7 +95,7 @@ export function RootComposeSecondaryContent({
             MACOS_WINDOW_DRAG_CLASS,
           )}
         >
-          {!isSecondaryPanelOpen && secondaryPanelHost === null ? (
+          {isCompactViewport && secondaryPanelHost === null ? (
             <div
               data-testid="root-compose-drag-strip-toggle-cutout"
               className={cn(
@@ -153,9 +153,8 @@ export function RootComposeSecondaryContent({
         compactPresentation={getCompactPanelPresentation(
           threadSecondaryPanelProps.activeTab?.kind,
           threadSecondaryPanelProps.fixedTabs[0]?.tab.kind ??
-            threadSecondaryPanelProps.tabs.find(
-              (tab) => tab.isHidden !== true,
-            )?.tab.kind,
+            threadSecondaryPanelProps.tabs.find((tab) => tab.isHidden !== true)
+              ?.tab.kind,
         )}
         renderPanel={({
           presentation,

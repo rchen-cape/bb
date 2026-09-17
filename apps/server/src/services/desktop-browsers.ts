@@ -107,6 +107,7 @@ function toStoredBrowserTab(
   return {
     id: tab.tabId,
     kind: "browser" as const,
+    colorTag: null,
     environmentId: null,
     title: tab.title.slice(0, 1024) || null,
     url: tab.url,

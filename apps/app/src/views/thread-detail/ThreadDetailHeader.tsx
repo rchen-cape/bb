@@ -149,9 +149,7 @@ export function ThreadDetailHeader({
     ? "Hide right panel"
     : "Show right panel";
   const rightPanelIconName = RIGHT_PANEL_TOGGLE_ICON_NAME;
-  const showRightPanelToggle =
-    secondaryPanelHost === null &&
-    (!isSecondaryPanelOpen || isCompactViewport);
+  const showRightPanelToggle = secondaryPanelHost === null && isCompactViewport;
 
   const center = (
     <>

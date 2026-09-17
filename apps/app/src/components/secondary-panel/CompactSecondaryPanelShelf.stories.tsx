@@ -45,6 +45,7 @@ const STORY_FILE_SOURCE = `export function RootComposeCompactHome({
 
 function createStoryFileTab(path: string): HostFilePreviewFixedPanelTab {
   return {
+    colorTag: null,
     environmentId: "env_story",
     hostId: "host_story",
     id: `host-file-preview:${encodeURIComponent(path)}:thread%3Athr_story%3Aenvironment%3Aenv_story`,

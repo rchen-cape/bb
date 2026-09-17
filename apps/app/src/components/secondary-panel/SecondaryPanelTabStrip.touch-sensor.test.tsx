@@ -2,6 +2,7 @@
 
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import {
   SecondaryPanelTabStrip,
   type SecondaryPanelTabStripProps,
@@ -43,20 +44,38 @@ describe("SecondaryPanelTabStrip touch sensor scoping", () => {
       isPanelOpen: false,
     };
 
-    const { rerender } = render(<SecondaryPanelTabStrip {...baseProps} />);
+    const { rerender } = render(
+      <TooltipProvider>
+        <SecondaryPanelTabStrip {...baseProps} />
+      </TooltipProvider>,
+    );
     expect(touchMoveCalls(addSpy)).toHaveLength(0);
 
-    rerender(<SecondaryPanelTabStrip {...baseProps} isPanelOpen />);
+    rerender(
+      <TooltipProvider>
+        <SecondaryPanelTabStrip {...baseProps} isPanelOpen />
+      </TooltipProvider>,
+    );
     const installs = touchMoveCalls(addSpy);
     expect(installs).toHaveLength(1);
     expect(installs[0]?.[2]).toEqual({ capture: false, passive: false });
 
-    rerender(<SecondaryPanelTabStrip {...baseProps} isPanelOpen={false} />);
+    rerender(
+      <TooltipProvider>
+        <SecondaryPanelTabStrip {...baseProps} isPanelOpen={false} />
+      </TooltipProvider>,
+    );
     expect(touchMoveCalls(removeSpy)).toHaveLength(1);
     expect(touchMoveCalls(addSpy)).toHaveLength(1);
 
     rerender(
-      <SecondaryPanelTabStrip {...baseProps} tabs={makeTabs(1)} isPanelOpen />,
+      <TooltipProvider>
+        <SecondaryPanelTabStrip
+          {...baseProps}
+          tabs={makeTabs(1)}
+          isPanelOpen
+        />
+      </TooltipProvider>,
     );
     expect(touchMoveCalls(addSpy)).toHaveLength(1);
   });

@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
-import type { SecondaryFileFixedPanelTab } from "@/lib/fixed-panel-tabs-state";
+import type {
+  FixedPanelTabColorTag,
+  SecondaryFileFixedPanelTab,
+} from "@/lib/fixed-panel-tabs-state";
 
 export interface MarketplacePluginDetailPanelTab {
   id: string;
@@ -21,6 +24,7 @@ export interface SecondaryPanelPaneRenderContext {
 }
 
 export interface SecondaryPanelRenderableTab {
+  colorTag?: FixedPanelTabColorTag | null;
   contentFillsRegion?: boolean;
   label: string;
   isHidden?: boolean;
@@ -28,6 +32,7 @@ export interface SecondaryPanelRenderableTab {
   leadingVisual: ReactNode;
   onClose: () => void;
   onSelect: () => void;
+  onSetColorTag?: (colorTag: FixedPanelTabColorTag | null) => void;
   renderContent: (pane: SecondaryPanelPaneRenderContext) => ReactNode;
   statusLabel: string | null;
   tab: SecondaryFileFixedPanelTab | MarketplacePluginDetailPanelTab;

@@ -20,8 +20,10 @@ import {
   createPluginPanelFixedPanelTab,
   createThreadStorageFilePreviewFixedPanelTab,
   createWorkspaceFilePreviewFixedPanelTab,
+  setFixedPanelTabColorTag,
   type BrowserFixedPanelTab,
   type FixedPanelTab,
+  type FixedPanelTabColorTag,
   type FixedPanelTabsState,
   type HostFilePreviewFixedPanelTab,
   type NewTabFixedPanelTab,
@@ -904,6 +906,23 @@ export function useThreadFileTabs({
     [updateFixedPanelTabsState],
   );
 
+  const setTabColorTag = useCallback(
+    (tabId: string, colorTag: FixedPanelTabColorTag | null) => {
+      updateFixedPanelTabsState((state) => {
+        const tab = findSecondaryPanelTab(state.secondary.tabs, tabId);
+        if (tab === null) {
+          return state;
+        }
+        const next = setFixedPanelTabColorTag(tab, colorTag);
+        if (next === tab) {
+          return state;
+        }
+        return updateSecondaryPanelTabInState({ state, tab: next });
+      });
+    },
+    [updateFixedPanelTabsState],
+  );
+
   const clearActiveFileTabs = useCallback(() => {
     updateFixedPanelTabsState(clearActiveSecondaryFileTabInState);
   }, [updateFixedPanelTabsState]);
@@ -988,6 +1007,7 @@ export function useThreadFileTabs({
     reopenClosedTab,
     reorderTab,
     selectFileSearchResult,
+    setTabColorTag,
     updateBrowserTab,
   };
 }

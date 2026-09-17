@@ -239,6 +239,7 @@ function createStoryActiveTab(
 
   if (outcome.kind === "browser") {
     return {
+      colorTag: null,
       environmentId: null,
       id: "browser:story:none",
       kind: "browser",
@@ -254,6 +255,7 @@ function createStoryActiveTab(
   const { selection } = outcome;
   if (selection.source === "workspace") {
     return {
+      colorTag: null,
       environmentId: ENVIRONMENT_ID,
       id: `workspace:${selection.path}`,
       kind: "workspace-file-preview",
@@ -266,6 +268,7 @@ function createStoryActiveTab(
   }
 
   return {
+    colorTag: null,
     environmentId: ENVIRONMENT_ID,
     id: `thread-storage:${selection.path}`,
     isPinned: false,
