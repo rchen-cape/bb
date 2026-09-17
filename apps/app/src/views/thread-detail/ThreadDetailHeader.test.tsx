@@ -125,37 +125,52 @@ describe("ThreadDetailHeader", () => {
     expect(trigger.closest("[data-thread-header-pane-actions]")).not.toBeNull();
   });
 
-  it.each([
-    { expectedIcon: "PanelRight", isCompactViewport: true },
-    { expectedIcon: "PanelRight", isCompactViewport: false },
-  ])(
-    "shows the $expectedIcon glyph on the right-panel trigger",
-    ({ expectedIcon, isCompactViewport }) => {
-      viewportState.isCompactViewport = isCompactViewport;
+  it("shows the PanelRight glyph on the compact-viewport right-panel trigger", () => {
+    viewportState.isCompactViewport = true;
 
-      render(
-        <PaneContext.Provider value={PANE_CONTEXT}>
-          <ThreadDetailHeader
-            actionsMenu={null}
-            childPillLabel={null}
-            isSecondaryPanelOpen={false}
-            onOpenThreadGitAction={vi.fn()}
-            onToggleSecondaryPanel={vi.fn()}
-            threadHeaderGitActions={[]}
-            threadId={THREAD_ID}
-            threadTitle="Panel state"
-          />
-        </PaneContext.Provider>,
-      );
+    render(
+      <PaneContext.Provider value={PANE_CONTEXT}>
+        <ThreadDetailHeader
+          actionsMenu={null}
+          childPillLabel={null}
+          isSecondaryPanelOpen={false}
+          onOpenThreadGitAction={vi.fn()}
+          onToggleSecondaryPanel={vi.fn()}
+          threadHeaderGitActions={[]}
+          threadId={THREAD_ID}
+          threadTitle="Panel state"
+        />
+      </PaneContext.Provider>,
+    );
 
-      const showButton = screen.getByRole("button", {
-        name: "Show right panel",
-      });
-      expect(
-        showButton.querySelector(`[data-icon="${expectedIcon}"]`),
-      ).not.toBeNull();
-    },
-  );
+    const showButton = screen.getByRole("button", {
+      name: "Show right panel",
+    });
+    expect(showButton.querySelector('[data-icon="PanelRight"]')).not.toBeNull();
+  });
+
+  it("hides the right-panel trigger on desktop viewports, where the tab rail replaces it", () => {
+    viewportState.isCompactViewport = false;
+
+    render(
+      <PaneContext.Provider value={PANE_CONTEXT}>
+        <ThreadDetailHeader
+          actionsMenu={null}
+          childPillLabel={null}
+          isSecondaryPanelOpen={false}
+          onOpenThreadGitAction={vi.fn()}
+          onToggleSecondaryPanel={vi.fn()}
+          threadHeaderGitActions={[]}
+          threadId={THREAD_ID}
+          threadTitle="Panel state"
+        />
+      </PaneContext.Provider>,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Show right panel" }),
+    ).toBeNull();
+  });
 
   it("keeps thread Full Screen in a split header while its panel is open", () => {
     render(

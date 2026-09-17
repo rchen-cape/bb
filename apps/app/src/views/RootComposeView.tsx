@@ -113,7 +113,10 @@ import {
   useTouchFixedPanelTabsState,
   useUpdateFixedPanelTabsState,
 } from "@/lib/fixed-panel-tabs";
-import { createNewTabFixedPanelTab } from "@/lib/fixed-panel-tabs-state";
+import {
+  createNewTabFixedPanelTab,
+  type FixedPanelTabColorTag,
+} from "@/lib/fixed-panel-tabs-state";
 import type {
   HostFileTabState,
   ThreadStorageFileTabState,
@@ -1053,6 +1056,7 @@ function RootComposeSurface({
     reopenClosedTab,
     reorderTab,
     selectFileSearchResult,
+    setTabColorTag,
     updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId: ROOT_COMPOSE_FIXED_PANEL_STATE_ID,
@@ -1640,11 +1644,17 @@ function RootComposeSurface({
               )
             : undefined;
         const shared = {
+          colorTag: "colorTag" in tab ? tab.colorTag : null,
           contentFillsRegion:
             tab.kind === "plugin-panel" &&
             (tab.fileOpenerOwner !== undefined ||
               pluginAction?.layout === "flush"),
           onClose: () => closeTab(tab.id),
+          onSetColorTag:
+            "colorTag" in tab
+              ? (colorTag: FixedPanelTabColorTag | null) =>
+                  setTabColorTag(tab.id, colorTag)
+              : undefined,
           renderContent: (pane: SecondaryPanelPaneRenderContext) =>
             renderRootPanelTabContent(tab, pane),
           tab,
@@ -1752,6 +1762,7 @@ function RootComposeSurface({
     handleCloseTerminalTab,
     renderRootPanelTabContent,
     rootPanelNewThreadPanelActions,
+    setTabColorTag,
     syncedOrderedSecondaryFileTabs,
     terminalsById,
   ]);
@@ -1777,8 +1788,7 @@ function RootComposeSurface({
     [openWorkspaceFile],
   );
   const showPinnedToggle =
-    (paneContext?.secondaryPanelHost ?? null) === null &&
-    (!isSecondaryPanelOpen || isCompactViewport);
+    (paneContext?.secondaryPanelHost ?? null) === null && isCompactViewport;
   const rootPanelToggle = showPinnedToggle ? (
     <div
       className={`fixed z-40 ${ROOT_COMPOSE_PINNED_PANEL_TOGGLE_POSITION_CLASS} ${

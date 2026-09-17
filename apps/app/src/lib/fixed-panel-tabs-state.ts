@@ -10,6 +10,7 @@ import { getLocalStorage } from "./browser-storage";
 export {
   FIXED_PANEL_TABS_STATE_STORAGE_VERSION,
   FIXED_PANEL_TABS_IDLE_EXPIRY_MS,
+  FIXED_PANEL_TAB_COLOR_TAGS,
   buildFixedPanelTabId,
   createThreadInfoFixedPanelTab,
   createGitDiffFixedPanelTab,
@@ -28,6 +29,7 @@ export {
   parseFixedPanelTabsState,
   serializeFixedPanelTabsState,
   areFixedPanelTabsEquivalent,
+  setFixedPanelTabColorTag,
 } from "@bb/client-core";
 export type {
   PluginPageFixedPanelTab,
@@ -43,6 +45,7 @@ export type {
   SecondaryFileFixedPanelTab,
   FixedPanelTab,
   FixedPanelTabsState,
+  FixedPanelTabColorTag,
 } from "@bb/client-core";
 
 interface CreateBrowserFixedPanelTabArgs {
@@ -60,6 +63,7 @@ export function createBrowserFixedPanelTab({
 }: CreateBrowserFixedPanelTabArgs): BrowserFixedPanelTab {
   const browserInstanceId = nanoid();
   return {
+    colorTag: null,
     environmentId,
     id: buildFixedPanelTabId({
       environmentId,

@@ -18,6 +18,7 @@ function browserTab(
   title: string,
 ): Extract<ThreadTab, { kind: "browser" }> {
   return {
+    colorTag: null,
     environmentId: null,
     id: `browser:${id}:none`,
     kind: "browser",

@@ -31,6 +31,7 @@ function ImageTabGalleryHarness({
     renderContent: () => null,
     statusLabel: null,
     tab: {
+      colorTag: null,
       environmentId: "environment-1",
       id: imageTab.id,
       kind: "workspace-file-preview",

@@ -1,81 +1,28 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { createElement } from "react";
-import { afterEach, vi } from "vitest";
-import { describe, expect, it } from "vitest";
-import {
-  SecondaryPanelTabStrip,
-  SECONDARY_PANEL_TAB_STRIP_FADE_TONE,
-} from "./SecondaryPanelTabStrip";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@bb/shared-ui/tooltip";
+import { SecondaryPanelTabStrip } from "./SecondaryPanelTabStrip";
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
-describe("secondary panel tab-strip edge fades", () => {
-  it("uses the themed edge fade", () => {
-    expect(SECONDARY_PANEL_TAB_STRIP_FADE_TONE).toBe("sidebar");
-  });
-
-  it("keeps the desktop tab viewport outside the window drag region", () => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        disconnect() {}
-      },
-    );
-    const tabStrip = (usesDesktopChrome: boolean) =>
+function renderStrip(
+  overrides: Partial<
+    Parameters<typeof SecondaryPanelTabStrip>[0]
+  > = {},
+) {
+  return render(
+    createElement(
+      TooltipProvider,
+      null,
       createElement(SecondaryPanelTabStrip, {
-        activeTabId: null,
-        tabs: [],
-        onReorderTab: vi.fn(),
-        usesDesktopChrome,
-        isPanelOpen: true,
-      });
-    const view = render(tabStrip(true));
-    const viewport = view.container.querySelector(".no-scrollbar");
-    expect(viewport?.className).toContain("[app-region:no-drag]");
-    expect(viewport?.className).toContain("[-webkit-app-region:no-drag]");
-
-    view.rerender(tabStrip(false));
-    expect(
-      view.container.querySelector(".no-scrollbar")?.className,
-    ).not.toContain("app-region");
-  });
-
-  it("enlarges coarse-pointer close targets only for file previews", () => {
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        observe() {}
-        disconnect() {}
-      },
-    );
-    const { getByRole } = render(
-      createElement(SecondaryPanelTabStrip, {
-        activeTabId: "file-preview",
+        activeTabId: "browser",
         tabs: [
-          {
-            label: "preview.html",
-            isPinned: false,
-            leadingVisual: null,
-            statusLabel: null,
-            onSelect: vi.fn(),
-            onClose: vi.fn(),
-            renderContent: () => null,
-            tab: {
-              environmentId: null,
-              hostId: null,
-              id: "file-preview",
-              kind: "host-file-preview" as const,
-              lineRange: null,
-              path: "preview.html",
-              threadId: null,
-            },
-          },
           {
             label: "Browser",
             isPinned: false,
@@ -90,159 +37,84 @@ describe("secondary panel tab-strip edge fades", () => {
         onReorderTab: vi.fn(),
         usesDesktopChrome: false,
         isPanelOpen: true,
+        ...overrides,
       }),
-    );
+    ),
+  );
+}
 
-    expect(
-      getByRole("button", { name: "Close preview.html" }).classList.contains(
-        "max-md:pointer-coarse:min-h-9",
-      ),
-    ).toBe(true);
-    expect(
-      getByRole("button", { name: "Close Browser" }).classList.contains(
-        "max-md:pointer-coarse:min-h-9",
-      ),
-    ).toBe(false);
-  });
-
-  it("observes the intrinsic tab row so async title changes refresh overflow", () => {
-    const observed: Element[] = [];
-    let resizeCallback: ResizeObserverCallback | undefined;
-    let animationFrameCallback: FrameRequestCallback | undefined;
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      animationFrameCallback = callback;
-      return 1;
-    });
-    vi.stubGlobal(
-      "ResizeObserver",
-      class {
-        constructor(callback: ResizeObserverCallback) {
-          resizeCallback = callback;
-        }
-        observe(element: Element) {
-          observed.push(element);
-        }
-        disconnect() {}
-      },
-    );
-
-    const { container } = render(
-      createElement(SecondaryPanelTabStrip, {
-        activeTabId: "browser",
-        tabs: [
-          {
-            label: "Browser",
-            isPinned: false,
-            leadingVisual: null,
-            statusLabel: null,
-            onSelect: vi.fn(),
-            onClose: vi.fn(),
-            renderContent: () => null,
-            tab: { id: "browser", kind: "new-tab" },
-          },
-        ],
-        onReorderTab: vi.fn(),
-        usesDesktopChrome: false,
-        isPanelOpen: true,
-      }),
-    );
-
-    const viewport = container.querySelector(".no-scrollbar");
-    const content = container.querySelector(
-      "[data-secondary-panel-tab-content]",
-    );
+describe("SecondaryPanelTabStrip", () => {
+  it("renders tabs as a vertical, scrollable icon column", () => {
+    const { container } = renderStrip();
     const strip = container.querySelector(
       '[data-testid="secondary-panel-tab-strip"]',
     );
-    expect(content).not.toBeNull();
     expect(strip).not.toBeNull();
-    expect(observed).toContain(strip);
-    expect(observed).toContain(viewport);
-    expect(observed).toContain(content);
-    expect(resizeCallback).toBeDefined();
-    expect(container.querySelectorAll("[data-overflow-fade]")).toHaveLength(2);
-    expect(
-      container
-        .querySelector("[data-overflow-fade='left']")
-        ?.classList.contains("w-6"),
-    ).toBe(true);
-    const leftButton = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Scroll tabs left"]',
-    );
-    const rightButton = container.querySelector<HTMLButtonElement>(
-      '[aria-label="Scroll tabs right"]',
-    );
-    expect(leftButton?.classList.contains("w-0")).toBe(true);
-    expect(rightButton?.classList.contains("w-0")).toBe(true);
+    expect(strip?.className).toContain("flex-col");
+    expect(strip?.className).toContain("overflow-y-auto");
+  });
 
-    const rightFade = container.querySelector("[data-overflow-fade='right']");
-    expect(rightFade?.classList.contains("opacity-0")).toBe(true);
-    Object.defineProperties(viewport!, {
-      clientWidth: { configurable: true, value: 120 },
-      scrollWidth: { configurable: true, value: 240 },
-      scrollLeft: { configurable: true, value: 0, writable: true },
+  it("selects a tab when its icon is clicked", () => {
+    const onSelect = vi.fn();
+    const { getByRole } = renderStrip({
+      tabs: [
+        {
+          label: "Browser",
+          isPinned: false,
+          leadingVisual: null,
+          statusLabel: null,
+          onSelect,
+          onClose: vi.fn(),
+          renderContent: () => null,
+          tab: { id: "browser", kind: "new-tab" as const },
+        },
+      ],
     });
-    Object.defineProperty(strip!, "clientWidth", {
-      configurable: true,
-      value: 120,
-    });
-    Object.defineProperty(content!, "scrollWidth", {
-      configurable: true,
-      value: 240,
-    });
-    act(() => {
-      resizeCallback?.([], {} as ResizeObserver);
-    });
-    expect(rightFade?.classList.contains("opacity-100")).toBe(true);
+    fireEvent.click(getByRole("button", { name: "Browser" }));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
 
-    const scrollRegion = container.querySelector(
-      "[data-secondary-panel-tab-scroll-region]",
-    );
-    expect(strip?.children[0]).toBe(leftButton);
-    expect(strip?.children[1]).toBe(scrollRegion);
-    expect(strip?.children[2]).toBe(rightButton);
-    expect(leftButton?.classList.contains("absolute")).toBe(false);
-    expect(rightButton?.classList.contains("absolute")).toBe(false);
-    expect(leftButton?.classList.contains("w-5")).toBe(true);
-    expect(rightButton?.classList.contains("w-5")).toBe(true);
-    expect(leftButton?.classList.contains("opacity-0")).toBe(true);
-    expect(leftButton?.tabIndex).toBe(-1);
-    expect(rightButton?.classList.contains("opacity-100")).toBe(true);
-    expect(rightButton?.tabIndex).toBe(0);
-    expect(rightButton?.classList.contains("bg-sidebar")).toBe(true);
-    expect(
-      rightButton?.classList.contains("hover:bg-surface-raised-solid"),
-    ).toBe(true);
-    expect(rightButton?.classList.contains("hover:bg-state-hover")).toBe(false);
-
-    const scrollBy = vi.fn();
-    Object.defineProperty(viewport!, "scrollBy", {
-      configurable: true,
-      value: scrollBy,
+  it("closes a non-pinned tab via its close affordance", () => {
+    const onClose = vi.fn();
+    const { getByRole } = renderStrip({
+      tabs: [
+        {
+          label: "Browser",
+          isPinned: false,
+          leadingVisual: null,
+          statusLabel: null,
+          onSelect: vi.fn(),
+          onClose,
+          renderContent: () => null,
+          tab: { id: "browser", kind: "new-tab" as const },
+        },
+      ],
     });
-    fireEvent.click(rightButton!);
-    expect(scrollBy).toHaveBeenCalledWith({ left: 140, behavior: "smooth" });
+    fireEvent.click(getByRole("button", { name: "Close Browser" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 
-    rightButton?.focus();
-    expect(document.activeElement).toBe(rightButton);
-    viewport!.scrollLeft = 120;
-    fireEvent.scroll(viewport!);
-    act(() => animationFrameCallback?.(0));
-    expect(rightButton?.getAttribute("aria-hidden")).toBe("true");
-    expect(leftButton?.getAttribute("aria-hidden")).toBe("false");
-    expect(document.activeElement).toBe(leftButton);
-
-    Object.defineProperty(content!, "scrollWidth", {
-      configurable: true,
-      value: 100,
+  it("renders a color swatch indicator when the tab has a colorTag", () => {
+    const { container } = renderStrip({
+      tabs: [
+        {
+          label: "Terminal",
+          isPinned: false,
+          leadingVisual: null,
+          colorTag: "blue",
+          statusLabel: null,
+          onSelect: vi.fn(),
+          onClose: vi.fn(),
+          renderContent: () => null,
+          tab: {
+            colorTag: "blue",
+            id: "terminal",
+            kind: "terminal" as const,
+            terminalId: "terminal",
+          },
+        },
+      ],
     });
-    act(() => {
-      resizeCallback?.([], {} as ResizeObserver);
-    });
-    expect(leftButton?.classList.contains("w-0")).toBe(true);
-    expect(rightButton?.classList.contains("w-0")).toBe(true);
-    expect(document.activeElement).toBe(
-      container.querySelector('button[aria-pressed="true"]'),
-    );
+    expect(container.querySelector(".bg-timeline-accent")).not.toBeNull();
   });
 });
