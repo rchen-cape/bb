@@ -65,11 +65,17 @@ export function useDragClickSuppression(): UseDragClickSuppressionResult {
      * next click anywhere in the app paid for it. A fresh press is by
      * definition a new gesture, and the drag's own click always arrives before
      * one, so disarming here cannot swallow the suppression it is meant for.
+     *
+     * Both press events are watched rather than pointerdown alone: the sensor
+     * that arms this works from mouse events, and a press that somehow arrives
+     * without its pointer counterpart must still disarm.
      */
     document.addEventListener("pointerdown", clearSuppression, true);
+    document.addEventListener("mousedown", clearSuppression, true);
     document.addEventListener("click", handleDocumentClick, true);
     return () => {
       document.removeEventListener("pointerdown", clearSuppression, true);
+      document.removeEventListener("mousedown", clearSuppression, true);
       document.removeEventListener("click", handleDocumentClick, true);
     };
   }, [clearSuppression, consumeDragClickSuppression]);

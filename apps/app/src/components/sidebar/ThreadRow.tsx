@@ -772,7 +772,16 @@ function ThreadRowComponent({
             openInSplit();
             return;
           }
-          if (consumeSidebarTitleDoubleClick(thread.id)) {
+          /*
+           * Renaming on a second click belongs to the thread already open. On
+           * any other row the second click is someone asking again for a
+           * thread that has not appeared yet, and answering it with a rename
+           * box leaves them staring at the thread they were trying to leave.
+           */
+          const isSecondClickOnThisRow = consumeSidebarTitleDoubleClick(
+            thread.id,
+          );
+          if (showActive && isSecondClickOnThisRow) {
             event.preventDefault();
             event.stopPropagation();
             startEditing();
@@ -780,7 +789,7 @@ function ThreadRowComponent({
           }
           onProjectSelect?.();
         }}
-        onDoubleClick={isEditing ? undefined : startTitleEditing}
+        onDoubleClick={isEditing || !showActive ? undefined : startTitleEditing}
         aria-label={linkLabel}
         aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
         className="absolute inset-0 rounded-md outline-none ring-sidebar-ring focus-visible:ring-2"
@@ -800,7 +809,7 @@ function ThreadRowComponent({
             <span
               className="bb-thread-title"
               title={labelTitle}
-              onDoubleClick={startTitleEditing}
+              onDoubleClick={showActive ? startTitleEditing : undefined}
             >
               <ThreadTitleMentions title={threadTitle} />
             </span>
@@ -901,6 +910,14 @@ function ThreadRowComponent({
                 className={cn(
                   SIDEBAR_HOVER_ACTIONS_CLASS,
                   "absolute inset-y-0 right-0 z-10 flex items-center justify-end max-md:pointer-coarse:hidden",
+                  /*
+                   * This overlay is wider than the slot it is anchored in, so it
+                   * reaches back over the row's text. Only its buttons may take
+                   * a click: left transparent, the padding and the gap between
+                   * them sat above the row's link and swallowed the click that
+                   * would have opened the thread.
+                   */
+                  "pointer-events-none [&_[role=button]]:pointer-events-auto [&_a]:pointer-events-auto [&_button]:pointer-events-auto",
                 )}
               >
                 <SidebarRowControls

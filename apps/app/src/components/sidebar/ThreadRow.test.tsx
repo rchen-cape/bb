@@ -1513,6 +1513,7 @@ describe("ThreadRow", () => {
 
   it("edits the row title inline after a double click and commits on Enter", () => {
     renderThreadRow({
+      isActive: true,
       thread: createThread({ title: "Thread", titleFallback: "Thread" }),
     });
 
@@ -1533,6 +1534,7 @@ describe("ThreadRow", () => {
 
   it("cancels an inline row rename on Escape without saving", () => {
     renderThreadRow({
+      isActive: true,
       thread: createThread({ title: "Thread", titleFallback: "Thread" }),
     });
 
@@ -1548,7 +1550,7 @@ describe("ThreadRow", () => {
 
   it("starts a rename from a second click after the row remounts", () => {
     const thread = createThread({ title: "Thread", titleFallback: "Thread" });
-    const { rerenderThreadRow } = renderThreadRow({ thread });
+    const { rerenderThreadRow } = renderThreadRow({ isActive: true, thread });
     const link = screen.getByRole("link", { name: "Open Thread" });
 
     fireEvent.click(link);
