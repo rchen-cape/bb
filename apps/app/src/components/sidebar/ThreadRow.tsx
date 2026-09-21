@@ -292,51 +292,43 @@ function ThreadRowIdleTime({ updatedAt }: { updatedAt: number }) {
   );
 }
 
-interface ThreadRowMetaProps {
+interface ThreadRowActivityTimeProps {
   activeSince: number | null;
-  branchName: string | null;
   updatedAt: number;
 }
 
-function ThreadRowMeta({
+function ThreadRowActivityTime({
   activeSince,
-  branchName,
   updatedAt,
-}: ThreadRowMetaProps) {
+}: ThreadRowActivityTimeProps) {
+  return (
+    <span
+      data-sidebar-thread-activity-time=""
+      className={cn("ml-auto shrink-0 pl-1.5", SIDEBAR_ROW_META_TEXT_CLASS)}
+    >
+      {activeSince === null ? (
+        <ThreadRowIdleTime updatedAt={updatedAt} />
+      ) : (
+        <ThreadRowProcessingTime activeSince={activeSince} />
+      )}
+    </span>
+  );
+}
+
+function ThreadRowBranch({ branchName }: { branchName: string }) {
   return (
     <span
       data-sidebar-thread-meta=""
       className={cn(
         "flex min-w-0 items-center gap-1",
         SIDEBAR_ROW_META_TEXT_CLASS,
+        SIDEBAR_ROW_META_MUTED_CLASS,
       )}
     >
-      {branchName === null ? null : (
-        <>
-          <span
-            className={cn(
-              "flex min-w-0 items-center gap-1",
-              SIDEBAR_ROW_META_MUTED_CLASS,
-            )}
-          >
-            <Icon name="GitBranch" className="size-3 shrink-0" aria-hidden />
-            <span className="truncate" title={branchName}>
-              {branchName}
-            </span>
-          </span>
-          <span
-            aria-hidden
-            className={cn("shrink-0", SIDEBAR_ROW_META_MUTED_CLASS)}
-          >
-            ·
-          </span>
-        </>
-      )}
-      {activeSince === null ? (
-        <ThreadRowIdleTime updatedAt={updatedAt} />
-      ) : (
-        <ThreadRowProcessingTime activeSince={activeSince} />
-      )}
+      <Icon name="GitBranch" className="size-3 shrink-0" aria-hidden />
+      <span className="truncate" title={branchName}>
+        {branchName}
+      </span>
     </span>
   );
 }
@@ -842,12 +834,16 @@ function ThreadRowComponent({
               revealOnHover={!isParentCollapsed}
             />
           ) : null}
+          {isEditing ? null : (
+            <ThreadRowActivityTime
+              activeSince={metaActiveSince}
+              updatedAt={thread.updatedAt}
+            />
+          )}
         </span>
-        <ThreadRowMeta
-          activeSince={metaActiveSince}
-          branchName={metaBranchName}
-          updatedAt={thread.updatedAt}
-        />
+        {metaBranchName === null ? null : (
+          <ThreadRowBranch branchName={metaBranchName} />
+        )}
       </span>
       <span className="flex shrink-0 items-center gap-0.5">
         {shortcut ? (

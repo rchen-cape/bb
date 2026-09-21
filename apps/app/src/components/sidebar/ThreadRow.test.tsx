@@ -1582,7 +1582,7 @@ describe("thread row meta line", () => {
     vi.useRealTimers();
   });
 
-  it("shows the branch name and how long ago an idle thread was updated", () => {
+  it("shows the branch name under the title and the updated time beside it", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const { container } = renderMetaRow({
@@ -1595,12 +1595,32 @@ describe("thread row meta line", () => {
 
     const meta = container.querySelector("[data-sidebar-thread-meta]");
     expect(meta?.textContent).toContain("bb/sidebar-visuals");
+    expect(meta?.querySelector("[data-sidebar-thread-idle-time]")).toBeNull();
     expect(
-      meta?.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
+      container.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
     ).toBe("5m ago");
     expect(
-      meta?.querySelector("[data-sidebar-thread-processing-time]"),
+      container.querySelector("[data-sidebar-thread-processing-time]"),
     ).toBeNull();
+  });
+
+  it("keeps the time on the title line, pushed to its right edge", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const { container } = renderMetaRow({
+      thread: createThread({
+        environmentBranchName: "bb/sidebar-visuals",
+        status: "idle",
+        updatedAt: NOW - 5 * 60_000,
+      }),
+    });
+
+    const time = container.querySelector("[data-sidebar-thread-activity-time]");
+    expect(Array.from(time?.classList ?? [])).toContain("ml-auto");
+    const titleLine = container
+      .querySelector(".bb-thread-title")
+      ?.closest("span.flex");
+    expect(titleLine?.contains(time ?? null)).toBe(true);
   });
 
   it("omits the branch name when the row sits under an environment group", () => {
@@ -1615,10 +1635,9 @@ describe("thread row meta line", () => {
       }),
     });
 
-    const meta = container.querySelector("[data-sidebar-thread-meta]");
-    expect(meta?.textContent).not.toContain("bb/sidebar-visuals");
+    expect(container.querySelector("[data-sidebar-thread-meta]")).toBeNull();
     expect(
-      meta?.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
+      container.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
     ).toBe("5m ago");
   });
 

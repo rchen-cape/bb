@@ -283,7 +283,7 @@ export function Overview() {
     <StoryCard>
       <StoryRow
         label="idle"
-        hint="quiet thread: title, then branch and last-updated under it"
+        hint="quiet thread: last-updated at the title's right edge, branch under it"
       >
         <SidebarStage>
           <StoryThreadRow
