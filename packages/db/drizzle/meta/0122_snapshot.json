@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fff17f7f-b6ad-4fc3-89c1-363790347638",
-  "prevId": "9e929359-ef83-4092-a7f9-edf93437e28b",
+  "id": "86432883-d8b9-49f2-b059-c196dbc0d309",
+  "prevId": "fff17f7f-b6ad-4fc3-89c1-363790347638",
   "tables": {
     "app_settings": {
       "name": "app_settings",
@@ -4163,6 +4163,14 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "status_changed_at": {
+          "name": "status_changed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
         },
         "awaiting_user_reply": {
           "name": "awaiting_user_reply",

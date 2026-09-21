@@ -4,7 +4,9 @@ import {
   getCollapsedChildActivity,
   hasThreadListWorkingActivity,
   isUnreadDoneThread,
+  isAwaitingUserReplyThread,
   resolveThreadListIndicator,
+  resolveThreadListRowHighlight,
   threadListIndicatorStateForThread,
   type ThreadListIndicatorState,
 } from "../src/thread/thread-activity.js";
@@ -49,6 +51,7 @@ const unreadErrorChild = makeChild({
 
 const idleIndicatorState: ThreadListIndicatorState = {
   hasPendingInteraction: false,
+  isAwaitingReply: false,
   hasUnsubmittedDraft: false,
   hasUnreadError: false,
   hasUnreadSuccess: false,
@@ -358,6 +361,7 @@ describe("thread-activity", () => {
 
       expect(threadListIndicatorStateForThread(thread, false)).toEqual({
         hasPendingInteraction: true,
+        isAwaitingReply: false,
         hasUnsubmittedDraft: false,
         hasUnreadError: false,
         hasUnreadSuccess: false,
@@ -369,6 +373,91 @@ describe("thread-activity", () => {
         isRuntimeActive: true,
         isWorkflowActive: true,
       });
+    });
+  });
+
+  describe("isAwaitingUserReplyThread", () => {
+    it("trusts the server's flag on a settled top-level thread", () => {
+      expect(
+        isAwaitingUserReplyThread({
+          awaitingUserReply: true,
+          parentThreadId: null,
+          status: "idle",
+        }),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["the server saw no question", false, null, "idle"],
+      ["a child thread reports to its parent", true, "thr-parent", "idle"],
+      ["a thread that never ran is not waiting", true, null, "pending"],
+      ["a thread already running again is not waiting", true, null, "active"],
+      ["a failed thread reads as an error", true, null, "error"],
+    ] as const)("%s", (_label, awaitingUserReply, parentThreadId, status) => {
+      expect(
+        isAwaitingUserReplyThread({
+          awaitingUserReply,
+          parentThreadId,
+          status,
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe("resolveThreadListRowHighlight", () => {
+    it("tints a thread waiting on a reply orange", () => {
+      expect(
+        resolveThreadListRowHighlight({
+          ...idleIndicatorState,
+          isAwaitingReply: true,
+        }),
+      ).toBe("attention");
+    });
+
+    it("keeps a pending interaction orange even while work runs", () => {
+      expect(
+        resolveThreadListRowHighlight({
+          ...idleIndicatorState,
+          hasPendingInteraction: true,
+          isRuntimeActive: true,
+        }),
+      ).toBe("attention");
+    });
+
+    it("prefers unread green over a waiting reply", () => {
+      expect(
+        resolveThreadListRowHighlight({
+          ...idleIndicatorState,
+          hasUnreadSuccess: true,
+          isAwaitingReply: true,
+        }),
+      ).toBe("unread");
+    });
+
+    it("leaves an unread failure to its destructive glyph", () => {
+      expect(
+        resolveThreadListRowHighlight({
+          ...idleIndicatorState,
+          hasUnreadError: true,
+        }),
+      ).toBe("none");
+    });
+
+    it.each([
+      ["work is still running", { isRuntimeActive: true }],
+      ["a reply is already queued", { queuedWork: "waiting" as const }],
+    ])("drops the waiting tint when %s", (_label, overrides) => {
+      expect(
+        resolveThreadListRowHighlight({
+          ...idleIndicatorState,
+          isAwaitingReply: true,
+          ...overrides,
+        }),
+      ).toBe("none");
+    });
+
+    it("tints nothing for a settled, read, answered thread", () => {
+      expect(resolveThreadListRowHighlight(idleIndicatorState)).toBe("none");
     });
   });
 

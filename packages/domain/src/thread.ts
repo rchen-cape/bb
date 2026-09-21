@@ -416,6 +416,13 @@ export const threadSchema = z.object({
    * thread has been in its current status.
    */
   statusChangedAt: z.number(),
+  /**
+   * Whether the agent closed its last turn by asking the user something. Unlike
+   * the unread flags this is about the content of the turn, not whether anyone
+   * looked at it, so it survives opening the thread and only clears when the
+   * next turn ends without a question.
+   */
+  awaitingUserReply: z.boolean(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

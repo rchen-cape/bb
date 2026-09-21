@@ -179,6 +179,7 @@ function toPublicThread(thread: Thread): Thread {
     lastReadAt: thread.lastReadAt,
     latestAttentionAt: thread.latestAttentionAt,
     statusChangedAt: thread.statusChangedAt,
+    awaitingUserReply: thread.awaitingUserReply,
     createdAt: thread.createdAt,
     updatedAt: thread.updatedAt,
   };

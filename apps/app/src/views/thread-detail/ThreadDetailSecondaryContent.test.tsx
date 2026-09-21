@@ -223,6 +223,7 @@ function FooterComposerDraftProbe() {
 function makeThread(): ThreadDetailSecondaryContentProps["metadata"]["thread"] {
   return {
     archivedAt: null,
+    awaitingUserReply: false,
     createdAt: 0,
     deletedAt: null,
     environmentId: null,

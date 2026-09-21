@@ -247,6 +247,7 @@ function MobileRecentThreadRow({
     ? {
         hasPendingInteraction:
           indicatorState.hasPendingInteraction || childActivity.pending,
+        isAwaitingReply: indicatorState.isAwaitingReply,
         hasUnsubmittedDraft:
           indicatorState.hasUnsubmittedDraft ||
           childActivity.hasUnsubmittedDraft,

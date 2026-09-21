@@ -1790,6 +1790,33 @@ export function setThreadExecutionOverride(
   return updated ?? null;
 }
 
+export interface SetThreadAwaitingUserReplyInput {
+  threadId: string;
+  awaitingUserReply: boolean;
+}
+
+/**
+ * Records whether the thread's last completed turn handed the conversation
+ * back to its user. Left out of `updatedAt` on purpose: it is derived from a
+ * turn bb has already stored, and bumping the sort timestamp would reorder the
+ * sidebar for something the user never did.
+ */
+export function setThreadAwaitingUserReply(
+  db: ThreadWriteConnection,
+  input: SetThreadAwaitingUserReplyInput,
+): void {
+  db
+    .update(threads)
+    .set({ awaitingUserReply: input.awaitingUserReply })
+    .where(
+      and(
+        eq(threads.id, input.threadId),
+        ne(threads.awaitingUserReply, input.awaitingUserReply),
+      ),
+    )
+    .run();
+}
+
 export interface SetThreadStartupContextInput {
   threadId: string;
   startupContext: string | null;

@@ -591,6 +591,9 @@ export const threads = sqliteTable(
     lastReadAt: integer("last_read_at"),
     latestAttentionAt: integer("latest_attention_at").notNull(),
     statusChangedAt: integer("status_changed_at").notNull().default(0),
+    awaitingUserReply: integer("awaiting_user_reply", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

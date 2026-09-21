@@ -1,0 +1,1 @@
+ALTER TABLE `threads` ADD `awaiting_user_reply` integer DEFAULT false NOT NULL;

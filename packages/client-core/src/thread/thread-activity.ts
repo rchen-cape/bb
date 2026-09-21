@@ -67,8 +67,30 @@ export function isBusyThread(
   );
 }
 
+/**
+ * Whether a thread is sitting on a question for its user. The server decides
+ * that from the closing passage of the last completed turn; a row only trusts
+ * the flag once the thread has actually settled, so a thread already running
+ * again is never waiting. A child thread reports to its parent, not the user.
+ */
+export function isAwaitingUserReplyThread(
+  thread: Pick<Thread, "awaitingUserReply" | "parentThreadId" | "status">,
+): boolean {
+  return (
+    thread.awaitingUserReply &&
+    thread.parentThreadId === null &&
+    thread.status === "idle"
+  );
+}
+
 export interface ThreadListIndicatorState {
   hasPendingInteraction: boolean;
+  /**
+   * Whether the agent has finished its turn and the user has not answered yet.
+   * Unlike the unread flags this does not clear when the thread is opened: a
+   * thread stays "waiting on you" until you actually send something.
+   */
+  isAwaitingReply: boolean;
   hasUnsubmittedDraft: boolean;
   hasUnreadError: boolean;
   hasUnreadSuccess: boolean;
@@ -150,6 +172,7 @@ export function threadListIndicatorStateForThread(
   const unreadDone = isUnreadDoneThread(thread);
   return {
     hasPendingInteraction: thread.hasPendingInteraction,
+    isAwaitingReply: isAwaitingUserReplyThread(thread),
     hasUnsubmittedDraft,
     hasUnreadError: unreadDone && thread.status === "error",
     hasUnreadSuccess: unreadDone && thread.status !== "error",
@@ -181,6 +204,31 @@ export function resolveThreadListIndicator(
   if (state.hasUnreadSuccess) return "unread-success";
   if (state.queuedWork === "waiting") return "queued-waiting";
   if (state.hasUnsubmittedDraft) return "draft";
+  return "none";
+}
+
+/**
+ * The row-level tint bb paints behind a thread. Resolved separately from the
+ * trailing glyph so a waiting thread still shows its draft pencil or queue
+ * clock while the row itself says who the thread is waiting on.
+ */
+export type ThreadListRowHighlight = "attention" | "unread" | "none";
+
+export function resolveThreadListRowHighlight(
+  state: ThreadListIndicatorState,
+): ThreadListRowHighlight {
+  if (state.hasPendingInteraction) return "attention";
+  // A failed thread already reads as destructive through its glyph; tinting it
+  // green for being unread would contradict that.
+  if (state.hasUnreadError) return "none";
+  if (state.hasUnreadSuccess) return "unread";
+  if (
+    state.isAwaitingReply &&
+    state.queuedWork === "none" &&
+    !hasThreadListWorkingActivity(state)
+  ) {
+    return "attention";
+  }
   return "none";
 }
 

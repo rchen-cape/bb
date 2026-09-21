@@ -1,4 +1,8 @@
-import { getThread, hasRootStoredTurnStarted } from "@bb/db";
+import {
+  getThread,
+  hasRootStoredTurnStarted,
+  setThreadAwaitingUserReply,
+} from "@bb/db";
 import {
   requireThreadEventScopeTurnId,
   type ThreadEvent,
@@ -11,6 +15,7 @@ import {
   resetActiveThreadEventPruningState,
 } from "../services/system/event-pruning.js";
 import { applyLoggedThreadLifecycleEvent } from "../services/threads/lifecycle-outcome.js";
+import { resolveAwaitingUserReply } from "../services/threads/awaiting-user-reply.js";
 
 interface ApplyTurnCompletedEventResult {
   isRootTurnCompletion: boolean;
@@ -59,6 +64,16 @@ export function applyTurnCompletedEvent(
 
   if (nextStatus) {
     resetActiveThreadEventPruningState(payload.threadId);
+  }
+
+  if (nextStatus) {
+    setThreadAwaitingUserReply(deps.db, {
+      awaitingUserReply:
+        nextStatus === "idle" &&
+        thread.parentThreadId === null &&
+        resolveAwaitingUserReply(deps.db, payload.threadId),
+      threadId: payload.threadId,
+    });
   }
 
   if (nextStatus === "idle") {

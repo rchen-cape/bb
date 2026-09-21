@@ -273,6 +273,7 @@ const latestMigrationWhen = Math.max(
 );
 
 function restoreWideExperimentsTable(db: DbConnection): void {
+  dropThreadAwaitingUserReplyColumn(db);
   const columns = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(system_experiments)")
     .all();
@@ -312,7 +313,22 @@ function dropThreadConversationOutlinesTable(db: DbConnection): void {
   db.$client.prepare("DROP TABLE IF EXISTS thread_conversation_outlines").run();
 }
 
+function dropThreadAwaitingUserReplyColumn(db: DbConnection): void {
+  const columns = new Set(
+    db.$client
+      .prepare<[], TableInfoRow>("PRAGMA table_info(threads)")
+      .all()
+      .map((column) => column.name),
+  );
+  if (columns.has("awaiting_user_reply")) {
+    db.$client
+      .prepare("ALTER TABLE threads DROP COLUMN awaiting_user_reply")
+      .run();
+  }
+}
+
 function dropRewindAddedTables(db: DbConnection): void {
+  dropThreadAwaitingUserReplyColumn(db);
   rewindEnvironmentRowFactsMigration(db);
   rewindEnvironmentProvidersMigration(db);
   dropThreadConversationOutlinesTable(db);
@@ -697,6 +713,7 @@ function dropEventToolNameColumn(db: DbConnection): void {
 }
 
 function dropEventParentToolCallIdColumn(db: DbConnection): void {
+  dropThreadAwaitingUserReplyColumn(db);
   dropEventToolNameColumn(db);
   const columns = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(events)")
@@ -895,6 +912,7 @@ function rewindMachineProvidersMigration(db: DbConnection): void {
 }
 
 function rewindEnvironmentProvidersMigration(db: DbConnection): void {
+  dropThreadAwaitingUserReplyColumn(db);
   rewindMachineProvidersMigration(db);
   rewindEnvironmentProvisioningMigration(db);
   db.$client.exec("DROP TABLE IF EXISTS machine_workspace_setups");
@@ -1108,6 +1126,7 @@ function dropProjectGitRemoteUrlColumn(db: DbConnection): void {
 }
 
 function dropThreadSectionSchema(db: DbConnection): void {
+  dropThreadAwaitingUserReplyColumn(db);
   db.$client.exec("DROP INDEX IF EXISTS threads_folder_archived_deleted_idx;");
   db.$client.exec("DROP INDEX IF EXISTS threads_section_archived_deleted_idx;");
   const threadColumns = db.$client
@@ -6095,6 +6114,7 @@ describe("environment and thread startup ownership migration", () => {
     (phase) => {
       const db = createMigratedConnection();
       try {
+        dropThreadAwaitingUserReplyColumn(db);
         rewindMachineProvidersMigration(db);
         rewindEnvironmentProvisioningMigration(db);
         const legacySchema = readFileSync(
