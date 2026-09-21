@@ -854,6 +854,38 @@ describe("ThreadRow", () => {
     ).toBe("CircleQuestion");
   });
 
+  it("tints the whole row when the thread needs user input", () => {
+    const { container, rerenderThreadRow } = renderThreadRow({
+      thread: createThread({ hasPendingInteraction: true }),
+    });
+
+    expect(
+      container.querySelector(".bb-sidebar-attention-row"),
+    ).not.toBeNull();
+
+    rerenderThreadRow(createThread({ hasPendingInteraction: false }));
+
+    expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
+  });
+
+  it("tints a collapsed parent whose hidden child needs user input", () => {
+    const { container } = renderThreadRow({
+      options: {
+        kind: "parent",
+        depth: 0,
+        isCompact: false,
+        isCollapsed: true,
+        childCount: 1,
+        childActivity: { ...NO_COLLAPSED_CHILD_ACTIVITY, pending: true },
+        onToggleCollapsed: () => {},
+      },
+    });
+
+    expect(
+      container.querySelector(".bb-sidebar-attention-row"),
+    ).not.toBeNull();
+  });
+
   it("clocks a thread with queued work, and drops the clock once it runs", () => {
     const { rerenderThreadRow } = renderThreadRow({
       thread: createThread({
