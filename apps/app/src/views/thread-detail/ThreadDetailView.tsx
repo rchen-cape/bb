@@ -290,6 +290,7 @@ import {
   createGitDiffFixedPanelTab,
   createNewTabFixedPanelTab,
   createThreadInfoFixedPanelTab,
+  type FixedPanelTabColorTag,
   type SecondaryFileFixedPanelTab,
 } from "@/lib/fixed-panel-tabs-state";
 import { resolveGitDiffTabStatus } from "@/components/secondary-panel/gitDiffTabEligibility";
@@ -704,6 +705,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     reopenClosedTab,
     reorderTab,
     selectFileSearchResult,
+    setTabColorTag,
     updateBrowserTab,
   } = useThreadFileTabs({
     panelStateId: threadId,
@@ -2742,11 +2744,17 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
             )
           : undefined;
       const shared = {
+        colorTag: "colorTag" in tab ? tab.colorTag : null,
         contentFillsRegion:
           tab.kind === "plugin-panel" &&
           (tab.fileOpenerOwner !== undefined ||
             pluginAction?.layout === "flush"),
         onClose: () => closeTab(tab.id),
+        onSetColorTag:
+          "colorTag" in tab
+            ? (colorTag: FixedPanelTabColorTag | null) =>
+                setTabColorTag(tab.id, colorTag)
+            : undefined,
         renderContent: () => renderSecondaryTabContent(tab),
         tab,
       };

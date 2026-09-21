@@ -282,11 +282,11 @@ describe("RootComposeSecondaryContent desktop layout", () => {
     ).toBeNull();
   });
 
-  it("carves the pinned toggle footprint out of the drag strip while the panel is closed", () => {
+  it("carves the pinned toggle footprint out of the drag strip on compact viewports while the panel is closed", () => {
     setMacosDesktopChrome();
 
     renderRootCompose({
-      isCompactViewport: false,
+      isCompactViewport: true,
       isSecondaryPanelOpen: false,
     });
 
@@ -300,6 +300,19 @@ describe("RootComposeSecondaryContent desktop layout", () => {
     )) {
       expect(cutout.className).toContain(positionClass);
     }
+  });
+
+  it("carves no cutout on desktop viewports, where the tab rail replaces the pinned toggle", () => {
+    setMacosDesktopChrome();
+
+    renderRootCompose({
+      isCompactViewport: false,
+      isSecondaryPanelOpen: false,
+    });
+
+    expect(
+      screen.queryByTestId("root-compose-drag-strip-toggle-cutout"),
+    ).toBeNull();
   });
 
   it("keeps the drag strip whole while the panel is open (the panel chrome carves instead)", () => {

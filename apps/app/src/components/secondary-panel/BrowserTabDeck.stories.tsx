@@ -26,13 +26,21 @@ const RECENTS_TAB_THREAD_ID = "thr_browser_tab_recents_story";
 const LOADING_TAB_THREAD_ID = "thr_browser_tab_loading_story";
 
 function makeBrowserTab(id: string): BrowserFixedPanelTab {
-  return { environmentId: null, id, kind: "browser", title: null, url: "" };
+  return {
+    colorTag: null,
+    environmentId: null,
+    id,
+    kind: "browser",
+    title: null,
+    url: "",
+  };
 }
 
 const EMPTY_TAB = makeBrowserTab("browser:empty");
 const NARROW_TAB = makeBrowserTab("browser:narrow");
 const RECENTS_TAB = makeBrowserTab("browser:recents");
 const LOADING_TAB: BrowserFixedPanelTab = {
+  colorTag: null,
   environmentId: null,
   id: "browser:loading",
   kind: "browser",

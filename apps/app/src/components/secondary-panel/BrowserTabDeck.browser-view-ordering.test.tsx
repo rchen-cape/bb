@@ -53,6 +53,7 @@ const desktopInfo = {
 
 function makeBrowserTab(id: string, url: string): BrowserFixedPanelTab {
   return {
+    colorTag: null,
     environmentId: "env-1",
     id,
     kind: "browser",

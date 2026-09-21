@@ -10,6 +10,17 @@ const THREAD_TAB_SOURCE_MESSAGE_MAX_LENGTH = 2_097_152;
 const THREAD_TAB_LIST_MAX_LENGTH = 200;
 const THREAD_TABS_JSON_MAX_LENGTH = 8_388_608;
 
+export const THREAD_TAB_COLOR_TAGS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+] as const;
+export const threadTabColorTagSchema = z.enum(THREAD_TAB_COLOR_TAGS);
+export type ThreadTabColorTag = z.infer<typeof threadTabColorTagSchema>;
+
 const threadTabIdSchema = z.string().min(1).max(THREAD_TAB_ID_MAX_LENGTH);
 const threadTabPathSchema = z.string().min(1).max(THREAD_TAB_PATH_MAX_LENGTH);
 const threadTabLineRangeSchema = z
@@ -101,6 +112,7 @@ export const threadTabSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      colorTag: threadTabColorTagSchema.nullable().default(null),
       environmentId: z.string().min(1).nullable(),
       id: threadTabIdSchema,
       kind: z.literal("workspace-file-preview"),
@@ -113,6 +125,7 @@ export const threadTabSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      colorTag: threadTabColorTagSchema.nullable().default(null),
       environmentId: z.string().min(1).nullable(),
       hostId: z.string().min(1).nullable().default(null),
       id: threadTabIdSchema,
@@ -124,6 +137,7 @@ export const threadTabSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      colorTag: threadTabColorTagSchema.nullable().default(null),
       environmentId: z.string().min(1).nullable(),
       id: threadTabIdSchema,
       isPinned: z.boolean(),
@@ -135,6 +149,7 @@ export const threadTabSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      colorTag: threadTabColorTagSchema.nullable().default(null),
       environmentId: z.string().min(1).nullable(),
       id: threadTabIdSchema,
       kind: z.literal("browser"),
@@ -163,6 +178,7 @@ export const threadTabSchema = z.discriminatedUnion("kind", [
     .strict(),
   z
     .object({
+      colorTag: threadTabColorTagSchema.nullable().default(null),
       id: threadTabIdSchema,
       kind: z.literal("terminal"),
       target: terminalCreateTargetSchema.optional(),

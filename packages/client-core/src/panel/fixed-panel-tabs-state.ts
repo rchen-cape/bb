@@ -26,6 +26,17 @@ const FIXED_PANEL_TABS_STATE_STORAGE_PREFIX = "bb.thread.fixedPanelTabsState";
 export const FIXED_PANEL_TABS_STATE_STORAGE_VERSION = 1;
 export const FIXED_PANEL_TABS_IDLE_EXPIRY_MS = 14 * 24 * 60 * 60 * 1000;
 
+export const FIXED_PANEL_TAB_COLOR_TAGS = [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+] as const;
+export type FixedPanelTabColorTag = (typeof FIXED_PANEL_TAB_COLOR_TAGS)[number];
+const fixedPanelTabColorTagSchema = z.enum(FIXED_PANEL_TAB_COLOR_TAGS);
+
 const SECONDARY_PANEL_TAB_ID_ENVIRONMENT_NONE = "none";
 const THREAD_INFO_TAB_ID = "thread-info:thread-info:none";
 const GIT_DIFF_TAB_ID = "git-diff:git-diff:none";
@@ -82,6 +93,7 @@ const pluginPageFixedPanelTabSchema = z
   .strict();
 const workspaceFilePreviewFixedPanelTabSchema = z
   .object({
+    colorTag: fixedPanelTabColorTagSchema.nullable().default(null),
     environmentId: z.string().min(1).nullable(),
     id: z.string().min(1),
     kind: z.literal("workspace-file-preview"),
@@ -94,6 +106,7 @@ const workspaceFilePreviewFixedPanelTabSchema = z
   .strict();
 const hostFilePreviewFixedPanelTabSchema = z
   .object({
+    colorTag: fixedPanelTabColorTagSchema.nullable().default(null),
     environmentId: z.string().min(1).nullable().default(null),
     hostId: z.string().min(1).nullable().default(null),
     id: z.string().min(1),
@@ -105,6 +118,7 @@ const hostFilePreviewFixedPanelTabSchema = z
   .strict();
 const threadStorageFilePreviewFixedPanelTabSchema = z
   .object({
+    colorTag: fixedPanelTabColorTagSchema.nullable().default(null),
     environmentId: z.string().min(1).nullable().default(null),
     id: z.string().min(1),
     isPinned: z.boolean(),
@@ -116,6 +130,7 @@ const threadStorageFilePreviewFixedPanelTabSchema = z
   .strict();
 const browserFixedPanelTabSchema = z
   .object({
+    colorTag: fixedPanelTabColorTagSchema.nullable().default(null),
     environmentId: z.string().min(1).nullable().default(null),
     id: z.string().min(1),
     kind: z.literal("browser"),
@@ -136,6 +151,7 @@ const newTabFixedPanelTabSchema = z
   .strict();
 const terminalFixedPanelTabSchema = z
   .object({
+    colorTag: fixedPanelTabColorTagSchema.nullable().default(null),
     id: z.string().min(1),
     kind: z.literal("terminal"),
     terminalId: z.string().min(1),
@@ -228,6 +244,7 @@ export interface PluginPanelFixedPanelTab {
 }
 
 export interface WorkspaceFilePreviewFixedPanelTab {
+  colorTag: FixedPanelTabColorTag | null;
   environmentId: string | null;
   id: string;
   kind: "workspace-file-preview";
@@ -239,6 +256,7 @@ export interface WorkspaceFilePreviewFixedPanelTab {
 }
 
 export interface HostFilePreviewFixedPanelTab {
+  colorTag: FixedPanelTabColorTag | null;
   environmentId: string | null;
   hostId: string | null;
   id: string;
@@ -249,6 +267,7 @@ export interface HostFilePreviewFixedPanelTab {
 }
 
 export interface ThreadStorageFilePreviewFixedPanelTab {
+  colorTag: FixedPanelTabColorTag | null;
   environmentId: string | null;
   id: string;
   isPinned: boolean;
@@ -259,6 +278,7 @@ export interface ThreadStorageFilePreviewFixedPanelTab {
 }
 
 export interface BrowserFixedPanelTab {
+  colorTag: FixedPanelTabColorTag | null;
   desktopTarget?: BbDesktopBrowserTarget;
   environmentId: string | null;
   id: string;
@@ -273,6 +293,7 @@ export interface NewTabFixedPanelTab {
 }
 
 export interface TerminalFixedPanelTab {
+  colorTag: FixedPanelTabColorTag | null;
   id: string;
   kind: "terminal";
   terminalId: string;
@@ -560,6 +581,7 @@ export function createWorkspaceFilePreviewFixedPanelTab({
   tab,
 }: CreateWorkspaceFilePreviewFixedPanelTabArgs): WorkspaceFilePreviewFixedPanelTab {
   return {
+    colorTag: null,
     environmentId,
     id: buildWorkspaceFilePreviewTabId({
       environmentId,
@@ -582,6 +604,7 @@ export function createHostFilePreviewFixedPanelTab({
   threadId,
 }: CreateHostFilePreviewFixedPanelTabArgs): HostFilePreviewFixedPanelTab {
   return {
+    colorTag: null,
     environmentId,
     hostId,
     id: buildHostFilePreviewTabId({
@@ -604,6 +627,7 @@ export function createThreadStorageFilePreviewFixedPanelTab({
   threadId,
 }: CreateThreadStorageFilePreviewFixedPanelTabArgs): ThreadStorageFilePreviewFixedPanelTab {
   return {
+    colorTag: null,
     environmentId,
     id: buildThreadStorageFilePreviewTabId({
       path: tab.path,
@@ -664,6 +688,7 @@ export function createTerminalFixedPanelTab({
   target,
 }: CreateTerminalFixedPanelTabArgs): TerminalFixedPanelTab {
   return {
+    colorTag: null,
     id: buildFixedPanelTabId({
       environmentId: null,
       kind: "terminal",
@@ -673,6 +698,26 @@ export function createTerminalFixedPanelTab({
     terminalId,
     ...(target !== undefined ? { target } : {}),
   };
+}
+
+export function setFixedPanelTabColorTag(
+  tab: FixedPanelTab,
+  colorTag: FixedPanelTabColorTag | null,
+): FixedPanelTab {
+  switch (tab.kind) {
+    case "workspace-file-preview":
+    case "host-file-preview":
+    case "thread-storage-file-preview":
+    case "browser":
+    case "terminal":
+      return tab.colorTag === colorTag ? tab : { ...tab, colorTag };
+    case "thread-info":
+    case "git-diff":
+    case "plugin-page-fixed":
+    case "plugin-panel":
+    case "new-tab":
+      return tab;
+  }
 }
 
 function normalizeFixedPanelTabId(tab: FixedPanelTab): FixedPanelTab {
@@ -1050,6 +1095,7 @@ export function areFixedPanelTabsEquivalent(
     case "workspace-file-preview":
       return (
         b.kind === "workspace-file-preview" &&
+        a.colorTag === b.colorTag &&
         a.environmentId === b.environmentId &&
         areFilePreviewLineRangesEqual({
           a: a.lineRange,
@@ -1063,6 +1109,7 @@ export function areFixedPanelTabsEquivalent(
     case "host-file-preview":
       return (
         b.kind === "host-file-preview" &&
+        a.colorTag === b.colorTag &&
         a.environmentId === b.environmentId &&
         a.hostId === b.hostId &&
         areFilePreviewLineRangesEqual({
@@ -1075,6 +1122,7 @@ export function areFixedPanelTabsEquivalent(
     case "browser":
       return (
         b.kind === "browser" &&
+        a.colorTag === b.colorTag &&
         a.desktopTarget?.hostId === b.desktopTarget?.hostId &&
         a.desktopTarget?.instanceId === b.desktopTarget?.instanceId &&
         a.desktopTarget?.generation === b.desktopTarget?.generation &&
@@ -1085,6 +1133,7 @@ export function areFixedPanelTabsEquivalent(
     case "thread-storage-file-preview":
       return (
         b.kind === "thread-storage-file-preview" &&
+        a.colorTag === b.colorTag &&
         a.environmentId === b.environmentId &&
         a.isPinned === b.isPinned &&
         areFilePreviewLineRangesEqual({
@@ -1097,6 +1146,7 @@ export function areFixedPanelTabsEquivalent(
     case "terminal":
       return (
         b.kind === "terminal" &&
+        a.colorTag === b.colorTag &&
         a.terminalId === b.terminalId &&
         JSON.stringify(a.target) === JSON.stringify(b.target)
       );

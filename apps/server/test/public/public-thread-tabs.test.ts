@@ -35,6 +35,7 @@ const ALL_TAB_KINDS: readonly ThreadTab[] = [
     title: "Inspector",
   },
   {
+    colorTag: null,
     environmentId: "env_1",
     id: "workspace-file",
     kind: "workspace-file-preview",
@@ -45,6 +46,7 @@ const ALL_TAB_KINDS: readonly ThreadTab[] = [
     statusLabel: null,
   },
   {
+    colorTag: null,
     environmentId: "env_1",
     hostId: null,
     id: "host-file",
@@ -54,6 +56,7 @@ const ALL_TAB_KINDS: readonly ThreadTab[] = [
     threadId: "thr_child",
   },
   {
+    colorTag: null,
     environmentId: "env_1",
     id: "thread-storage-file",
     isPinned: true,
@@ -63,6 +66,7 @@ const ALL_TAB_KINDS: readonly ThreadTab[] = [
     threadId: "thr_child",
   },
   {
+    colorTag: null,
     environmentId: "env_1",
     id: "browser",
     kind: "browser",
@@ -78,7 +82,7 @@ const ALL_TAB_KINDS: readonly ThreadTab[] = [
     threadId: "thr_child",
     title: "Investigate",
   },
-  { id: "terminal", kind: "terminal", terminalId: "term_1" },
+  { colorTag: null, id: "terminal", kind: "terminal", terminalId: "term_1" },
 ];
 
 describe("public thread tabs", () => {
@@ -137,6 +141,7 @@ describe("public thread tabs", () => {
       const { thread } = seedThreadFixture(harness);
       const tabs: readonly ThreadTab[] = [
         {
+          colorTag: null,
           environmentId: "env_1",
           hostId: null,
           id: "host-file-default",
@@ -146,6 +151,7 @@ describe("public thread tabs", () => {
           threadId: thread.id,
         },
         {
+          colorTag: null,
           environmentId: null,
           hostId: "host_1",
           id: "host-file-explicit",
