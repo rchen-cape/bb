@@ -59,6 +59,9 @@ export const SIDEBAR_ROW_INTERACTIVE_STATE_CLASS = `cursor-pointer ${SIDEBAR_ROW
 
 export const SIDEBAR_ROW_SELECTED_STATE_CLASS = `${CONTEXT_SELECTION_SURFACE_CLASS} bb-sidebar-selected-row ${SIDEBAR_ROW_TEXT_CLASS}`;
 
+export const SIDEBAR_ROW_ATTENTION_STATE_CLASS =
+  "bb-sidebar-attention-row font-medium text-warning-text ring-1 ring-inset ring-attention/50 hover:bg-attention/25 hover:text-warning-text";
+
 export const SIDEBAR_ROW_OPEN_IN_SPLIT_STATE_CLASS =
   "bb-sidebar-open-in-split-row";
 

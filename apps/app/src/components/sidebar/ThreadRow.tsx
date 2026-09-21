@@ -58,6 +58,7 @@ import { getThreadRoutePath } from "@/lib/route-paths";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { LIST_HOVER_TRANSITION } from "@bb/shared-ui/motion";
 import {
+  SIDEBAR_ROW_ATTENTION_STATE_CLASS,
   SIDEBAR_ROW_BASE_CLASS,
   SIDEBAR_ROW_GLYPH_SLOT_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
@@ -345,6 +346,16 @@ export function ThreadStatusGlyph({
         />
       );
     case "waiting-for-input":
+      return (
+        <Icon
+          name={WAITING_ICONS[kind]}
+          className={cn(
+            "text-attention motion-safe:animate-pulse",
+            COARSE_POINTER_ICON_SIZE_CLASS,
+          )}
+          aria-label={getThreadListIndicatorLabel(kind) ?? undefined}
+        />
+      );
     case "queued-waiting":
       return (
         <Icon
@@ -634,6 +645,8 @@ function ThreadRowComponent({
     !showActive &&
       splitIndicator.isOpenInSplit &&
       SIDEBAR_ROW_OPEN_IN_SPLIT_STATE_CLASS,
+    trailingIndicatorKind === "waiting-for-input" &&
+      SIDEBAR_ROW_ATTENTION_STATE_CLASS,
     !showActive && "has-[[data-state=open]]:bg-sidebar-accent",
     rowDragBindings && !rowDragBindings.disabled && "select-none",
     nestTargetState && NEST_TARGET_STATE_CLASS[nestTargetState],
