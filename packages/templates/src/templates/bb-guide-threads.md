@@ -308,6 +308,7 @@ Ownership:
 
   bb thread read [id]                      Mark read
   bb thread unread [id]                    Mark unread
+  bb thread dismiss-awaiting-reply [id]    Stop a thread waiting on your reply, without replying
   bb thread reorder-pinned <id> [--after <id>] [--before <id>]
 
 Interactions:

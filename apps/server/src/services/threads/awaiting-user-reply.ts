@@ -1,16 +1,19 @@
 import { z } from "zod";
 import { getLatestThreadOutputEventRow, type DbConnection } from "@bb/db";
 
+/**
+ * Closings that ask the user for a decision or an instruction. Deliberately
+ * excludes the courtesies that end a report without needing anything back
+ * ("let me know", "your call", "up to you", "say the word"): they read as an
+ * open door rather than a question, and tinting on them made finished threads
+ * look like blocked ones.
+ */
 const EXPLICIT_REQUEST_PATTERNS: readonly RegExp[] = [
-  /\blet me know\b/iu,
   /\bwant me to\b/iu,
   /\bshould i\b/iu,
   /\bshall i\b/iu,
   /\btell me (which|what|where|if|whether)\b/iu,
   /\bconfirm (which|whether|if)\b/iu,
-  /\byour call\b/iu,
-  /\bup to you\b/iu,
-  /\bsay the word\b/iu,
 ];
 
 const FENCE_DELIMITER = /^\s*(```|~~~)/u;

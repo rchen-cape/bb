@@ -1803,9 +1803,10 @@ export interface SetThreadAwaitingUserReplyInput {
  */
 export function setThreadAwaitingUserReply(
   db: ThreadWriteConnection,
+  notifier: DbNotifier,
   input: SetThreadAwaitingUserReplyInput,
 ): void {
-  db
+  const updated = db
     .update(threads)
     .set({ awaitingUserReply: input.awaitingUserReply })
     .where(
@@ -1814,7 +1815,14 @@ export function setThreadAwaitingUserReply(
         ne(threads.awaitingUserReply, input.awaitingUserReply),
       ),
     )
-    .run();
+    .returning()
+    .get();
+  if (!updated) {
+    return;
+  }
+  notifier.notifyThread(input.threadId, ["awaiting-reply-changed"], {
+    projectId: updated.projectId,
+  });
 }
 
 export interface SetThreadStartupContextInput {

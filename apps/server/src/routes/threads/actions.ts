@@ -5,6 +5,7 @@ import {
   getQueuedThreadMessage,
   getThread,
   listActiveVisiblePinnedThreadRootsWithPendingInteractionState,
+  setThreadAwaitingUserReply,
   pinThread,
   reorderPinnedThread,
   reorderQueuedThreadMessage,
@@ -577,6 +578,19 @@ export function registerThreadActionRoutes(app: Hono, deps: AppDeps): void {
     const thread = updateThread(deps.db, deps.hub, context.req.param("id"), {
       lastReadAt: Date.now(),
     });
+    if (!thread) {
+      throw new ApiError(404, "thread_not_found", "Thread not found");
+    }
+    return context.json(toThreadResponseFromThread(deps, { thread }));
+  });
+
+  post(routes.dismissAwaitingReply, (context) => {
+    requirePublicThread(deps.db, context.req.param("id"));
+    setThreadAwaitingUserReply(deps.db, deps.hub, {
+      awaitingUserReply: false,
+      threadId: context.req.param("id"),
+    });
+    const thread = getThread(deps.db, context.req.param("id"));
     if (!thread) {
       throw new ApiError(404, "thread_not_found", "Thread not found");
     }

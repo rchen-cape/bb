@@ -54,6 +54,12 @@ import {
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
 import { ThreadGoalCard } from "@/components/promptbox/banner/ThreadGoalCard";
 import { ThreadTodoCard } from "@/components/promptbox/banner/ThreadTodoCard";
+import {
+  shouldShowAwaitingReplyCard,
+  ThreadAwaitingReplyCard,
+} from "@/components/promptbox/banner/ThreadAwaitingReplyCard";
+import { useDismissThreadAwaitingReply } from "@/hooks/mutations/thread-state-mutations";
+import { requestComposerFocus } from "@/lib/composer-focus-requests";
 import { ThreadPromptModeCard } from "@/components/promptbox/banner/ThreadPromptModeCard";
 import { ThreadWorkflowCard } from "@/components/promptbox/banner/ThreadWorkflowCard";
 import { ThreadBackgroundCommandsCard } from "@/components/promptbox/banner/ThreadBackgroundCommandsCard";
@@ -1815,6 +1821,41 @@ export function ThreadDetailPromptArea({
     thread.id,
     inlineTypeaheadConfig,
   ]);
+  const dismissAwaitingReply = useDismissThreadAwaitingReply();
+  const [addressedAwaitingReplyThreadId, setAddressedAwaitingReplyThreadId] =
+    useState<string | null>(null);
+  const awaitingReplyCard = useMemo(() => {
+    if (
+      !shouldShowAwaitingReplyCard({
+        awaitingUserReply: thread.awaitingUserReply,
+        hasAddressed: addressedAwaitingReplyThreadId === thread.id,
+        hasPendingInteraction,
+        isComposerHidden: shouldHideComposer,
+      })
+    ) {
+      return null;
+    }
+    return (
+      <ThreadAwaitingReplyCard
+        isDismissPending={dismissAwaitingReply.isPending}
+        onAddress={() => {
+          setAddressedAwaitingReplyThreadId(thread.id);
+          requestComposerFocus(promptDraft.storageKey);
+        }}
+        onDecline={() => {
+          dismissAwaitingReply.mutate({ threadId: thread.id });
+        }}
+      />
+    );
+  }, [
+    addressedAwaitingReplyThreadId,
+    dismissAwaitingReply,
+    hasPendingInteraction,
+    promptDraft.storageKey,
+    shouldHideComposer,
+    thread.awaitingUserReply,
+    thread.id,
+  ]);
   const childPendingInteractionBanners = useMemo(
     () =>
       childPendingInteractions.map((item) => (
@@ -1831,6 +1872,7 @@ export function ThreadDetailPromptArea({
     () => (
       <>
         {childPendingInteractionBanners}
+        {awaitingReplyCard}
         {activeWorkflows.map((workflow) => (
           <ThreadWorkflowCard
             key={workflow.id}
@@ -1930,6 +1972,7 @@ export function ThreadDetailPromptArea({
     [
       canUseGitUi,
       childPendingInteractionBanners,
+      awaitingReplyCard,
       contextBannerMergeBase,
       environmentHostId,
       expandedBannerSection,

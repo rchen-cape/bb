@@ -286,6 +286,24 @@ export function registerOrganizationCommands(
   }
 
   parent
+    .command("dismiss-awaiting-reply [id]")
+    .description("Stop a thread waiting on your reply, without replying")
+    .option("--self", "Target the current thread (from BB_THREAD_ID)")
+    .option("--json", "Print machine-readable JSON output")
+    .action(
+      action(async (id: string | undefined, opts: SelfOptions) => {
+        const threadId = requireThreadIdOrSelf(id, opts);
+        const result = await createCliBbSdk(
+          getUrl(),
+        ).threads.dismissAwaitingReply({
+          threadId,
+        });
+        if (outputJson(opts, result)) return;
+        console.log(`Thread ${threadId} no longer waiting on your reply`);
+      }),
+    );
+
+  parent
     .command("reorder-pinned <id>")
     .description("Move a pinned thread between adjacent pinned threads")
     .option("--after <id>", "Previous pinned thread, or omit for the start")
@@ -308,37 +326,33 @@ export function registerOrganizationCommands(
     .description("Manage queued thread messages");
   queue
     .command("list [threadId]")
-    .description(
-      "List queued messages; omit the thread to list every one",
-    )
+    .description("List queued messages; omit the thread to list every one")
     .option(
       "--wait-holder <holder>",
       "Filter to rows one plugin is holding: plugin:<plugin-id>",
     )
     .option("--json", "Print machine-readable JSON output")
     .action(
-      action(
-        async (threadId: string | undefined, opts: QueueListOptions) => {
-          const sdk = createCliBbSdk(getUrl());
-          // A thread argument keeps the thread-scoped route, which is the one
-          // that returns queue ORDER; the cross-thread route answers "what is
-          // queued anywhere" and is ordered by age instead.
-          const result =
-            threadId === undefined
-              ? await sdk.threads.queue.list({
-                  ...(opts.waitHolder
-                    ? { waitHolder: parseWaitHolder(opts.waitHolder) }
-                    : {}),
-                })
-              : await sdk.threads.queuedMessages.list({ threadId });
-          if (outputJson(opts, result)) return;
-          if (result.length === 0) {
-            console.log("No queued messages found");
-            return;
-          }
-          printQueueTable(result);
-        },
-      ),
+      action(async (threadId: string | undefined, opts: QueueListOptions) => {
+        const sdk = createCliBbSdk(getUrl());
+        // A thread argument keeps the thread-scoped route, which is the one
+        // that returns queue ORDER; the cross-thread route answers "what is
+        // queued anywhere" and is ordered by age instead.
+        const result =
+          threadId === undefined
+            ? await sdk.threads.queue.list({
+                ...(opts.waitHolder
+                  ? { waitHolder: parseWaitHolder(opts.waitHolder) }
+                  : {}),
+              })
+            : await sdk.threads.queuedMessages.list({ threadId });
+        if (outputJson(opts, result)) return;
+        if (result.length === 0) {
+          console.log("No queued messages found");
+          return;
+        }
+        printQueueTable(result);
+      }),
     );
   queue
     .command("create <threadId> <message>")
