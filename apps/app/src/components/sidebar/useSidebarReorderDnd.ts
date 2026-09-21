@@ -27,7 +27,18 @@ function setSidebarDraggingCursor(active: boolean): void {
   delete document.body.dataset.sidebarDragging;
 }
 
-type UseSidebarReorderDndArgs = Omit<UseReorderDndArgs, "touchSensor">;
+type UseSidebarReorderDndArgs = Omit<
+  UseReorderDndArgs,
+  "touchSensor" | "mouseActivationDistance"
+>;
+
+/**
+ * Sidebar rows are clicked far more often than they are dragged, and the click
+ * that switches threads usually happens with the hand already moving toward
+ * the next row. The shared 4px budget classified that drift as a drag and ate
+ * the click, so these rows get a wider one.
+ */
+const SIDEBAR_MOUSE_ACTIVATION_DISTANCE_PX = 8;
 
 function shouldInstallSidebarTouchMoveListener(): boolean {
   return (
@@ -118,5 +129,6 @@ export function useSidebarReorderDnd({
     touchSensor: SidebarTouchSensor,
     axis,
     measuring,
+    mouseActivationDistance: SIDEBAR_MOUSE_ACTIVATION_DISTANCE_PX,
   });
 }

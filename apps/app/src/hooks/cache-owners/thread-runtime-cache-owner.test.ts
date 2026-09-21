@@ -1,6 +1,7 @@
 import type { ThreadListEntry, ThreadQueuedMessage } from "@bb/domain";
 import type {
   SidebarBootstrapResponse,
+  ThreadResponse,
   ThreadSearchResponse,
   ThreadTimelineResponse,
 } from "@bb/server-contract";
@@ -15,7 +16,10 @@ import {
   makeProjectWithThreadsResponse,
   makeSidebarBootstrapResponse,
 } from "@/test/fixtures/projects";
-import { makeThreadTimelineResponse as makeTimelineResponse } from "@/test/fixtures/thread-responses";
+import {
+  makeThreadResponse,
+  makeThreadTimelineResponse as makeTimelineResponse,
+} from "@/test/fixtures/thread-responses";
 import {
   sidebarNavigationQueryKey,
   threadListQueryKey,
@@ -196,6 +200,75 @@ describe("thread runtime cache owner", () => {
       }
     },
   );
+
+  it("advances statusChangedAt when the optimistic send wakes an idle thread", async () => {
+    const queryClient = createAppQueryClient({
+      defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+      showMutationErrorToasts: false,
+    });
+    const idleSince = Date.now() - 800_000;
+    queryClient.setQueryData(threadQueryKey("thread-1"), {
+      ...makeThreadResponse(),
+      status: "idle",
+      runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
+      statusChangedAt: idleSince,
+      updatedAt: idleSince,
+    });
+    queryClient.setQueryData(
+      threadTimelineQueryKey("thread-1"),
+      makeTimelineResponse(),
+    );
+
+    await beginSendThreadMessageTransaction({
+      queryClient,
+      request: {
+        id: "thread-1",
+        mode: "auto",
+        input: [{ type: "text", text: "Go", mentions: [] }],
+      },
+    });
+
+    const thread = queryClient.getQueryData<ThreadResponse>(
+      threadQueryKey("thread-1"),
+    );
+    expect(thread?.runtime.displayStatus).toBe("active");
+    // The elapsed timer reads now - statusChangedAt, so a stale timestamp here
+    // renders as ~800s of phantom work until the server's status change lands.
+    expect(thread?.statusChangedAt).toBeGreaterThan(idleSince);
+    expect(Date.now() - (thread?.statusChangedAt ?? 0)).toBeLessThan(5_000);
+  });
+
+  it("leaves statusChangedAt alone when the thread is already active", async () => {
+    const queryClient = createAppQueryClient({
+      defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+      showMutationErrorToasts: false,
+    });
+    const activeSince = Date.now() - 800_000;
+    queryClient.setQueryData(threadQueryKey("thread-1"), {
+      ...makeThreadResponse(),
+      status: "active",
+      runtime: { displayStatus: "active", hostReconnectGraceExpiresAt: null },
+      statusChangedAt: activeSince,
+    });
+    queryClient.setQueryData(
+      threadTimelineQueryKey("thread-1"),
+      makeTimelineResponse(),
+    );
+
+    await beginSendThreadMessageTransaction({
+      queryClient,
+      request: {
+        id: "thread-1",
+        mode: "auto",
+        input: [{ type: "text", text: "Go", mentions: [] }],
+      },
+    });
+
+    expect(
+      queryClient.getQueryData<ThreadResponse>(threadQueryKey("thread-1"))
+        ?.statusChangedAt,
+    ).toBe(activeSince);
+  });
 
   it("omits agent-only text from optimistic user messages", async () => {
     const queryClient = createAppQueryClient({

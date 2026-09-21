@@ -42,6 +42,14 @@ const restrictDragToVerticalAxis: Modifier = ({ transform }) => ({
 
 const REORDER_MODIFIERS: Modifier[] = [restrictDragToVerticalAxis];
 
+/**
+ * How far the pointer may travel with the button down before the press counts
+ * as a drag rather than a click. Every pixel of this budget is a click the user
+ * can lose: crossing it starts a drag, and a drag swallows the click that the
+ * browser fires on release.
+ */
+const DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX = 4;
+
 export interface UseReorderDndArgs {
   onDragEnd: (event: DragEndEvent) => void;
   onDragStart?: (event: DragStartEvent) => void;
@@ -52,6 +60,12 @@ export interface UseReorderDndArgs {
   touchSensor?: Sensor<TouchSensorOptions>;
   axis?: "vertical" | "free";
   measuring?: MeasuringConfiguration;
+  /**
+   * Overrides {@link DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX}. Raise it on
+   * surfaces where a click is the primary action and dragging is occasional,
+   * so ordinary hand drift during a click does not read as a drag.
+   */
+  mouseActivationDistance?: number;
 }
 
 export type ReorderDndContextProps = Pick<
@@ -83,6 +97,7 @@ export function useReorderDnd({
   touchSensor = TouchSensor,
   axis = "vertical",
   measuring,
+  mouseActivationDistance = DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX,
 }: UseReorderDndArgs): UseReorderDndResult {
   const {
     beginDragClickSuppression,
@@ -91,7 +106,9 @@ export function useReorderDnd({
   } = useDragClickSuppression();
   const isDraggingRef = useRef(false);
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: mouseActivationDistance },
+    }),
     useSensor(touchSensor, {
       activationConstraint: { delay: 200, tolerance: 6 },
     }),

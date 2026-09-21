@@ -711,6 +711,18 @@ function applyOptimisticAcceptedTurnThreadState({
     ...thread,
     status: "active",
     updatedAt: Math.max(thread.updatedAt, createdAt),
+    /*
+     * This flip is a status change, so it has to move the clock that reports
+     * one. Leaving it behind let the sidebar's elapsed timer render the age of
+     * the *previous* transition — minutes or hours for a thread that had been
+     * sitting idle — until the server's real status change replaced it and the
+     * timer snapped back to zero. A thread that was already active keeps its
+     * timestamp: no status changed, so neither does the clock.
+     */
+    statusChangedAt:
+      thread.status === "active"
+        ? thread.statusChangedAt
+        : Math.max(thread.statusChangedAt, createdAt),
     runtime: {
       ...thread.runtime,
       displayStatus:

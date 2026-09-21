@@ -59,11 +59,20 @@ export function useDragClickSuppression(): UseDragClickSuppressionResult {
       event.stopImmediatePropagation();
     };
 
+    /*
+     * A drag that ends without producing a click — released outside the window,
+     * say — used to leave the flag armed for the rest of its timeout, and the
+     * next click anywhere in the app paid for it. A fresh press is by
+     * definition a new gesture, and the drag's own click always arrives before
+     * one, so disarming here cannot swallow the suppression it is meant for.
+     */
+    document.addEventListener("pointerdown", clearSuppression, true);
     document.addEventListener("click", handleDocumentClick, true);
     return () => {
+      document.removeEventListener("pointerdown", clearSuppression, true);
       document.removeEventListener("click", handleDocumentClick, true);
     };
-  }, [consumeDragClickSuppression]);
+  }, [clearSuppression, consumeDragClickSuppression]);
 
   useEffect(() => clearScheduledTimeout, [clearScheduledTimeout]);
 
