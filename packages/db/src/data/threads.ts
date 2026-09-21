@@ -301,6 +301,7 @@ export function createThread(
           visibility,
           lastReadAt: now,
           latestAttentionAt: now,
+          statusChangedAt: now,
           createdAt: now,
           updatedAt: now,
         })
@@ -1996,6 +1997,7 @@ export function applyThreadLifecycleEventInTransaction(
   const now = Date.now();
   const set: Partial<typeof threads.$inferInsert> = {
     status: evaluation.to,
+    statusChangedAt: now,
     updatedAt: now,
   };
   if (

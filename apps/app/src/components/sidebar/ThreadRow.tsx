@@ -29,7 +29,7 @@ import {
   COARSE_POINTER_GLYPH_BOX_CLASS,
   COARSE_POINTER_ICON_SIZE_CLASS,
   COARSE_POINTER_ROW_ACTION_SIZE_CLASS,
-  COARSE_POINTER_ROW_HEIGHT_CLASS,
+  COARSE_POINTER_THREAD_ROW_HEIGHT_CLASS,
 } from "@bb/shared-ui/coarse-pointer-sizing";
 import {
   SIDEBAR_HOVER_ACTIONS_CLASS,
@@ -62,7 +62,9 @@ import {
   SIDEBAR_ROW_BASE_CLASS,
   SIDEBAR_ROW_GLYPH_SLOT_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
+  SIDEBAR_ROW_META_TEXT_CLASS,
   SIDEBAR_ROW_SELECTED_STATE_CLASS,
+  SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_CONTROL_BUTTON_CLASS,
   SIDEBAR_ROW_OPEN_IN_SPLIT_STATE_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
@@ -91,6 +93,10 @@ import {
 } from "@/components/thread/ThreadTitleMentions";
 import { pluginIconName } from "@/components/plugin/PluginIcon";
 import { usePluginThreadRowStatus } from "@/lib/plugin-thread-row-status";
+import { durationToCompactString } from "@bb/thread-view";
+import { useSecondTick } from "@/hooks/useSecondTick";
+import { useMinuteTick } from "@/hooks/useMinuteTick";
+import { formatRelativeTime } from "@/lib/relative-time";
 
 const SIDEBAR_TITLE_DOUBLE_CLICK_MS = 400;
 
@@ -113,7 +119,7 @@ export function resetSidebarTitleDoubleClickForTest(): void {
 
 interface ThreadRowBaseOptions {
   depth: number;
-  isCompact: boolean;
+  hideBranchName: boolean;
   consumeClickSuppression?: ConsumeDragClickSuppression;
   dragBindings?: SidebarSortableDragBindings;
   nestDrop?: ThreadRowNestDrop;
@@ -391,7 +397,7 @@ export function ThreadStatusGlyph({
           name="Loading"
           className={cn(
             "animate-spin",
-            SIDEBAR_WORKING_STATUS_COLOR_CLASS,
+            SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
             COARSE_POINTER_ICON_SIZE_CLASS,
           )}
           aria-label={getThreadListIndicatorLabel(kind) ?? undefined}

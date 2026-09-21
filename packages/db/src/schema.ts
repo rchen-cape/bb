@@ -590,6 +590,7 @@ export const threads = sqliteTable(
     storageDeletedAt: integer("storage_deleted_at"),
     lastReadAt: integer("last_read_at"),
     latestAttentionAt: integer("latest_attention_at").notNull(),
+    statusChangedAt: integer("status_changed_at").notNull().default(0),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },

@@ -409,6 +409,13 @@ export const threadSchema = z.object({
   deletedAt: z.number().nullable(),
   lastReadAt: z.number().nullable(),
   latestAttentionAt: z.number(),
+  /**
+   * Epoch ms of the thread's last status transition. Distinct from
+   * `updatedAt`, which any row edit bumps — a rename or a read marker
+   * included — so it is the only field a reader can use to say how long the
+   * thread has been in its current status.
+   */
+  statusChangedAt: z.number(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

@@ -1,3 +1,3 @@
 import { createIntervalTick } from "./useIntervalTick";
 
-export const useSecondTick = createIntervalTick(1_000);
+export const useMinuteTick = createIntervalTick(60_000);

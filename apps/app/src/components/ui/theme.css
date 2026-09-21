@@ -153,6 +153,7 @@
     --bb-sidebar-sticky-label-height: 1.5rem;
     --bb-sidebar-sticky-label-gap: 0.25rem;
     --bb-sidebar-sticky-row-height: var(--bb-sidebar-row-height);
+    --bb-sidebar-sticky-thread-row-height: var(--bb-sidebar-thread-row-height);
     --bb-sidebar-sticky-row-gap: 0.25rem;
     --bb-sidebar-sticky-child-row-gap: 0.125rem;
     --bb-sidebar-sticky-label-top: var(--bb-sidebar-sticky-stack-padding-top);
@@ -170,8 +171,12 @@
       var(--bb-sidebar-sticky-project-top) +
         var(--bb-sidebar-sticky-row-height) + var(--bb-sidebar-sticky-row-gap)
     );
+    /* A pinned chain mixes single-line environment headers with two-line
+       thread rows, so the stride takes the taller of the two: a level that
+       follows a shorter row leaves a small gap, which reads far better than
+       the overlap a shorter stride would produce. */
     --bb-sidebar-sticky-parent-stride: calc(
-      var(--bb-sidebar-sticky-row-height) +
+      var(--bb-sidebar-sticky-thread-row-height) +
         var(--bb-sidebar-sticky-child-row-gap)
     );
     --bb-sidebar-sticky-parent-base-z: 40;
@@ -395,6 +400,15 @@
     );
   }
 
+  /* Thread rows are the two-line tier; environment headers keep the
+     single-line row height. */
+  [data-sidebar-sticky-stack]
+    [data-sidebar-sticky-tier="parent"][data-sidebar-thread-row] {
+    --bb-sidebar-sticky-tier-height: var(
+      --bb-sidebar-sticky-thread-row-height
+    );
+  }
+
   [data-sidebar-sticky-stack]
     [data-sidebar-sticky-project-item]
     > :not([hidden])
@@ -413,6 +427,9 @@
   @media (max-width: 767px) and (pointer: coarse) {
     [data-sidebar-sticky-stack] {
       --bb-sidebar-sticky-row-height: var(--bb-sidebar-row-height-coarse);
+      --bb-sidebar-sticky-thread-row-height: var(
+        --bb-sidebar-thread-row-height-coarse
+      );
     }
   }
 }
@@ -584,6 +601,10 @@
   --radius: 0.5rem;
   --bb-sidebar-row-height: 1.75rem;
   --bb-sidebar-row-height-coarse: 2.5rem;
+  /* Thread rows carry a second line (branch plus activity time), so they are
+     taller than the single-line project, section, and environment rows. */
+  --bb-sidebar-thread-row-height: 2.625rem;
+  --bb-sidebar-thread-row-height-coarse: 3.375rem;
   --shadow-x: 0px;
   --shadow-y: 2px;
   --shadow-blur: 0px;
