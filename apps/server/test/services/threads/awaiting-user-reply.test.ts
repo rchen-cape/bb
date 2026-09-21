@@ -15,7 +15,14 @@ describe("closingPassageAsksUser", () => {
       "a hand-back with no question mark",
       "I'd also rather not kill other running sessions. If you do want a specific session restarted, tell me which one and I'll confirm before touching it.",
     ],
-    ["a deferral", "Both readings are defensible, so it's your call."],
+    [
+      "a request for a decision",
+      "Both readings are defensible — tell me which one you want.",
+    ],
+    [
+      "an offer to keep going",
+      "The first two are fixed. Should I take the remaining three as well?",
+    ],
   ])("reads %s as waiting on the user", (_label, text) => {
     expect(closingPassageAsksUser(text)).toBe(true);
   });
@@ -28,6 +35,22 @@ describe("closingPassageAsksUser", () => {
     [
       "a summary of completed work",
       "Fixed the off-by-one and added a regression test. Both suites pass.",
+    ],
+    [
+      "a closing courtesy",
+      "Both suites pass. Let me know if anything else looks off.",
+    ],
+    [
+      "a deferral to the reader",
+      "Both readings are defensible, so it's your call.",
+    ],
+    [
+      "a standing offer",
+      "I left the flake alone for now. Say the word and I will chase it.",
+    ],
+    [
+      "handing the decision over without asking",
+      "Which one ships first is up to you.",
     ],
   ])("reads %s as finished", (_label, text) => {
     expect(closingPassageAsksUser(text)).toBe(false);

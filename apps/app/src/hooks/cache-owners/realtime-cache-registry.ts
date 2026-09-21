@@ -415,6 +415,10 @@ export const REALTIME_THREAD_CHANGE_REGISTRY = {
     flush: "debounced",
     dirty: [markThreadDetailQueryStale, markThreadListQueriesStale],
   },
+  "awaiting-reply-changed": {
+    flush: "debounced",
+    dirty: [markThreadDetailQueryStale, markThreadListQueriesStale],
+  },
   "order-changed": {
     flush: "debounced",
     dirty: [dirtyRootOrderThreadListQueries],

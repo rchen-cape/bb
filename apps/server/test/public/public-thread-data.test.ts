@@ -13,6 +13,8 @@ import {
   insertEvents,
   listQueuedThreadMessages,
   getThread,
+  noopNotifier,
+  setThreadAwaitingUserReply,
   queuedThreadMessages,
   reorderQueuedThreadMessage,
   setQueuedThreadMessageGroupBoundary,
@@ -74,6 +76,10 @@ const queuedMessageIdResponseSchema = z.object({
 
 const threadReadResponseSchema = z.object({
   lastReadAt: z.number().nullable(),
+});
+
+const threadAwaitingReplyResponseSchema = z.object({
+  awaitingUserReply: z.boolean(),
 });
 
 const threadEventWaitResponseSchema = z.object({
@@ -2481,6 +2487,42 @@ describe("public thread data routes", () => {
       expect(threadAfterUnread?.latestAttentionAt).toBe(
         thread.latestAttentionAt,
       );
+    });
+  });
+
+  it("stops a thread waiting on a reply without touching read state", async () => {
+    await withTestHarness(async (harness) => {
+      const { thread } = seedThreadFixture(harness);
+      setThreadAwaitingUserReply(harness.db, noopNotifier, {
+        awaitingUserReply: true,
+        threadId: thread.id,
+      });
+
+      const response = await harness.app.request(
+        `/api/v1/threads/${thread.id}/dismiss-awaiting-reply`,
+        { method: "POST" },
+      );
+
+      expect(response.status).toBe(200);
+      const dismissed = threadAwaitingReplyResponseSchema.parse(
+        await readJson(response),
+      );
+      expect(dismissed.awaitingUserReply).toBe(false);
+      const stored = getThread(harness.db, thread.id);
+      expect(stored?.awaitingUserReply).toBe(false);
+      expect(stored?.lastReadAt).toBe(thread.lastReadAt);
+      expect(stored?.latestAttentionAt).toBe(thread.latestAttentionAt);
+    });
+  });
+
+  it("answers 404 when dismissing an unknown thread's reply state", async () => {
+    await withTestHarness(async (harness) => {
+      const response = await harness.app.request(
+        "/api/v1/threads/thr_missing/dismiss-awaiting-reply",
+        { method: "POST" },
+      );
+
+      expect(response.status).toBe(404);
     });
   });
 

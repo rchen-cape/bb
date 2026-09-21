@@ -378,6 +378,7 @@ type ExpectedThreadsKey =
   | "compact"
   | "conversationOutline"
   | "count"
+  | "dismissAwaitingReply"
   | "defaultExecutionOptions"
   | "delete"
   | "editMessage"

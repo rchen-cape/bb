@@ -24,6 +24,7 @@ export const THREAD_CHANGE_KINDS = [
   "parent-changed",
   "environment-changed",
   "read-state-changed",
+  "awaiting-reply-changed",
   "order-changed",
   "tabs-changed",
   "terminals-changed",

@@ -67,7 +67,7 @@ export function applyTurnCompletedEvent(
   }
 
   if (nextStatus) {
-    setThreadAwaitingUserReply(deps.db, {
+    setThreadAwaitingUserReply(deps.db, deps.hub, {
       awaitingUserReply:
         nextStatus === "idle" &&
         thread.parentThreadId === null &&

@@ -374,6 +374,21 @@ export function useDeleteThread() {
   });
 }
 
+export function useDismissThreadAwaitingReply() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    meta: {
+      errorMessage: "Failed to decline the follow-up.",
+    },
+    mutationFn: (input: ThreadReadMutationInput) =>
+      sdk.threads.dismissAwaitingReply(input),
+    onSuccess: (thread) => {
+      applyThreadReadStateResult({ queryClient, thread });
+    },
+  });
+}
+
 export function useMarkThreadRead() {
   const queryClient = useQueryClient();
 

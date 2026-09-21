@@ -574,6 +574,7 @@ export interface ThreadsArea {
   interactions: ThreadInteractionsArea;
   list(args?: ThreadListArgs): Promise<ThreadListResult>;
   listRunning(args?: { signal?: AbortSignal }): Promise<ThreadRunningResult>;
+  dismissAwaitingReply(args: ThreadActionArgs): Promise<ThreadReadStateResult>;
   markRead(args: ThreadActionArgs): Promise<ThreadReadStateResult>;
   markUnread(args: ThreadActionArgs): Promise<ThreadReadStateResult>;
   open(args: ThreadOpenArgs): Promise<ThreadOpenResult>;
@@ -1182,6 +1183,16 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
         transport.api.v1.threads.$get(
           { query: listQuery(input) },
           ...signalRequestArgs(input?.signal),
+        ),
+      );
+    },
+    async dismissAwaitingReply(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"]["dismiss-awaiting-reply"].$post(
+          {
+            param: { id: input.threadId },
+          },
+          ...signalRequestArgs(input.signal),
         ),
       );
     },

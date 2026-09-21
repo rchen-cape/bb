@@ -141,6 +141,7 @@ configures the machine with optional configured `preset` and `image` names;
 - `bb thread history`
 - `bb thread read`
 - `bb thread unread`
+- `bb thread dismiss-awaiting-reply`
 - `bb thread reorder-pinned`
 - `bb thread count`
 - `bb thread queue`

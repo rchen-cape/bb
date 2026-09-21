@@ -1465,6 +1465,12 @@ export const publicApiRoutes = {
       request: noRequest<PathId>(),
       response: jsonResponse<ThreadResponse>(),
     }),
+    dismissAwaitingReply: defineRoute({
+      path: "/threads/:id/dismiss-awaiting-reply",
+      method: "post",
+      request: noRequest<PathId>(),
+      response: jsonResponse<ThreadResponse>(),
+    }),
     timeline: defineRoute({
       path: "/threads/:id/timeline",
       method: "get",
