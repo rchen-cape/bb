@@ -273,7 +273,7 @@ const latestMigrationWhen = Math.max(
 );
 
 function restoreWideExperimentsTable(db: DbConnection): void {
-  dropThreadAwaitingUserReplyColumn(db);
+  dropLateThreadColumns(db);
   const columns = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(system_experiments)")
     .all();
@@ -313,22 +313,22 @@ function dropThreadConversationOutlinesTable(db: DbConnection): void {
   db.$client.prepare("DROP TABLE IF EXISTS thread_conversation_outlines").run();
 }
 
-function dropThreadAwaitingUserReplyColumn(db: DbConnection): void {
+function dropLateThreadColumns(db: DbConnection): void {
   const columns = new Set(
     db.$client
       .prepare<[], TableInfoRow>("PRAGMA table_info(threads)")
       .all()
       .map((column) => column.name),
   );
-  if (columns.has("awaiting_user_reply")) {
-    db.$client
-      .prepare("ALTER TABLE threads DROP COLUMN awaiting_user_reply")
-      .run();
+  for (const column of ["awaiting_user_reply", "status_changed_at"]) {
+    if (columns.has(column)) {
+      db.$client.prepare(`ALTER TABLE threads DROP COLUMN ${column}`).run();
+    }
   }
 }
 
 function dropRewindAddedTables(db: DbConnection): void {
-  dropThreadAwaitingUserReplyColumn(db);
+  dropLateThreadColumns(db);
   rewindEnvironmentRowFactsMigration(db);
   rewindEnvironmentProvidersMigration(db);
   dropThreadConversationOutlinesTable(db);
@@ -410,6 +410,7 @@ const publishedTerminalSessionUserInputWhen = requirePublishedMigrationWhen(
 const closedSessionPruneIndexesWhen = requirePublishedMigrationWhen(
   "0002_closed_session_prune_indexes",
 );
+const statusChangedAtMigrationWhen = 1790015589935;
 const threadDynamicContextFileStatesWhen = 1779139400002;
 const commandLookupIndexesWhen = 1779943370189;
 const threadPinningMigrationWhen = 1779990051923;
@@ -713,7 +714,7 @@ function dropEventToolNameColumn(db: DbConnection): void {
 }
 
 function dropEventParentToolCallIdColumn(db: DbConnection): void {
-  dropThreadAwaitingUserReplyColumn(db);
+  dropLateThreadColumns(db);
   dropEventToolNameColumn(db);
   const columns = db.$client
     .prepare<[], TableInfoRow>("PRAGMA table_info(events)")
@@ -912,7 +913,7 @@ function rewindMachineProvidersMigration(db: DbConnection): void {
 }
 
 function rewindEnvironmentProvidersMigration(db: DbConnection): void {
-  dropThreadAwaitingUserReplyColumn(db);
+  dropLateThreadColumns(db);
   rewindMachineProvidersMigration(db);
   rewindEnvironmentProvisioningMigration(db);
   db.$client.exec("DROP TABLE IF EXISTS machine_workspace_setups");
@@ -1126,7 +1127,7 @@ function dropProjectGitRemoteUrlColumn(db: DbConnection): void {
 }
 
 function dropThreadSectionSchema(db: DbConnection): void {
-  dropThreadAwaitingUserReplyColumn(db);
+  dropLateThreadColumns(db);
   db.$client.exec("DROP INDEX IF EXISTS threads_folder_archived_deleted_idx;");
   db.$client.exec("DROP INDEX IF EXISTS threads_section_archived_deleted_idx;");
   const threadColumns = db.$client
@@ -6114,7 +6115,7 @@ describe("environment and thread startup ownership migration", () => {
     (phase) => {
       const db = createMigratedConnection();
       try {
-        dropThreadAwaitingUserReplyColumn(db);
+        dropLateThreadColumns(db);
         rewindMachineProvidersMigration(db);
         rewindEnvironmentProvisioningMigration(db);
         const legacySchema = readFileSync(
@@ -6239,4 +6240,52 @@ describe("environment and thread startup ownership migration", () => {
       }
     },
   );
+});
+
+describe("thread status changed at migration", () => {
+  it("backfills existing rows from updated_at", () => {
+    const db = createMigratedConnection();
+    try {
+      const host = upsertHost(db, noopNotifier, {
+        id: "host-status-changed-at",
+        name: "Migration Host",
+      });
+      const { project } = createProject(db, noopNotifier, {
+        name: "Migration Project",
+        source: {
+          type: "local_path",
+          hostId: host.id,
+          path: "/tmp/status-changed-at-migration",
+        },
+      });
+      const thread = createThread(db, noopNotifier, {
+        projectId: project.id,
+        providerId: "test-provider",
+      });
+      db.$client
+        .prepare<[number, string]>(
+          "UPDATE threads SET updated_at = ? WHERE id = ?",
+        )
+        .run(4_242, thread.id);
+      db.$client
+        .prepare("ALTER TABLE threads DROP COLUMN status_changed_at")
+        .run();
+      db.$client
+        .prepare<[number]>(
+          "DELETE FROM __drizzle_migrations WHERE created_at >= ?",
+        )
+        .run(statusChangedAtMigrationWhen);
+
+      migrate(db);
+
+      const stored = db.$client
+        .prepare<[string], { status_changed_at: number; updated_at: number }>(
+          "SELECT status_changed_at, updated_at FROM threads WHERE id = ?",
+        )
+        .get(thread.id);
+      expect(stored).toEqual({ status_changed_at: 4_242, updated_at: 4_242 });
+    } finally {
+      closeConnection(db);
+    }
+  });
 });

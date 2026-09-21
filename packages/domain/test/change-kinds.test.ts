@@ -49,6 +49,7 @@ const maximalThreadMetadata: ThreadChangeMetadata = {
       activeWorkflowCount: 1,
     },
     latestAttentionAt: 1_000,
+    statusChangedAt: 1_500,
     updatedAt: 2_000,
   },
 };

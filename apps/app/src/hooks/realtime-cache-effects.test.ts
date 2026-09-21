@@ -829,6 +829,7 @@ describe("createRealtimeCacheEffects", () => {
         statusChange: {
           activity: NO_THREAD_ACTIVITY,
           latestAttentionAt: 100,
+          statusChangedAt: 100,
           runtime: {
             displayStatus: "active",
             hostReconnectGraceExpiresAt: null,
@@ -2281,6 +2282,7 @@ describe("createRealtimeCacheEffects", () => {
       activity: NO_THREAD_ACTIVITY,
       id: "thr_1",
       latestAttentionAt: 100,
+      statusChangedAt: 100,
       runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
       status: "idle",
       updatedAt: 100,
@@ -2289,6 +2291,7 @@ describe("createRealtimeCacheEffects", () => {
       activity: NO_THREAD_ACTIVITY,
       id: "thr_2",
       latestAttentionAt: 50,
+      statusChangedAt: 50,
       runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
       status: "idle",
       updatedAt: 50,
@@ -2320,6 +2323,7 @@ describe("createRealtimeCacheEffects", () => {
     const statusChange = {
       activity: { ...NO_THREAD_ACTIVITY, activePlanModeCount: 1 },
       latestAttentionAt: 100,
+      statusChangedAt: 100,
       runtime: {
         displayStatus: "active",
         hostReconnectGraceExpiresAt: null,
@@ -2497,6 +2501,7 @@ describe("createRealtimeCacheEffects", () => {
       activity: NO_THREAD_ACTIVITY,
       id: "thr_1",
       latestAttentionAt: 100,
+      statusChangedAt: 100,
       runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
       status: "idle",
       updatedAt: 100,
@@ -2525,6 +2530,7 @@ describe("createRealtimeCacheEffects", () => {
         statusChange: {
           activity: NO_THREAD_ACTIVITY,
           latestAttentionAt: 100,
+          statusChangedAt: 100,
           runtime: {
             displayStatus: "active",
             hostReconnectGraceExpiresAt: null,
@@ -2571,6 +2577,7 @@ describe("createRealtimeCacheEffects", () => {
       activity: NO_THREAD_ACTIVITY,
       id: "thr_1",
       latestAttentionAt: 100,
+      statusChangedAt: 100,
       runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
       status: "idle",
       updatedAt: 100,
@@ -2631,6 +2638,7 @@ describe("createRealtimeCacheEffects", () => {
         statusChange: {
           activity: NO_THREAD_ACTIVITY,
           latestAttentionAt: 100,
+          statusChangedAt: 100,
           runtime: {
             displayStatus: "active",
             hostReconnectGraceExpiresAt: null,
@@ -2935,6 +2943,7 @@ describe("createRealtimeCacheEffects", () => {
         activity: NO_THREAD_ACTIVITY,
         id: "thr_1",
         latestAttentionAt: 100,
+        statusChangedAt: 100,
         runtime: { displayStatus: "idle", hostReconnectGraceExpiresAt: null },
         status: "idle",
         updatedAt: 100,
@@ -2954,6 +2963,7 @@ describe("createRealtimeCacheEffects", () => {
           statusChange: {
             activity: NO_THREAD_ACTIVITY,
             latestAttentionAt: 100,
+            statusChangedAt: 100,
             runtime: {
               displayStatus: "active",
               hostReconnectGraceExpiresAt: null,

@@ -32,6 +32,7 @@ vi.mock("@/components/thread/ThreadActionsProvider", () => ({
 import { TooltipProvider } from "@bb/shared-ui/tooltip";
 import { ThreadTitleMentionResourcesProvider } from "@/components/thread/ThreadTitleMentions";
 import {
+  SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
   SIDEBAR_WORKING_STATUS_COLOR_CLASS,
 } from "./sidebarRowClasses";
@@ -75,7 +76,7 @@ function createThread(
 const DEFAULT_OPTIONS: ThreadRowOptions = {
   kind: "default",
   depth: 1,
-  isCompact: false,
+  hideBranchName: false,
 };
 
 function ThreadRowTestHarness({
@@ -365,7 +366,7 @@ describe("ThreadRow", () => {
       options: {
         kind: "parent" as const,
         depth: 1,
-        isCompact: false,
+        hideBranchName: false,
         isCollapsed: true,
         childCount: 1,
         childActivity: {
@@ -839,7 +840,9 @@ describe("ThreadRow", () => {
         .querySelector('[data-prompt-mention="true"]')
         ?.getAttribute("data-prompt-mention-serialized-text"),
     ).toBe("@docs/foo.test.ts");
-    expect(container.textContent).toBe("Review foo.test.ts.");
+    expect(container.querySelector(".bb-thread-title")?.textContent).toBe(
+      "Review foo.test.ts.",
+    );
   });
 
   it("uses the circle-question glyph when the thread needs user input", () => {
@@ -1021,7 +1024,7 @@ describe("ThreadRow", () => {
       options: {
         kind: "parent",
         depth: 1,
-        isCompact: false,
+        hideBranchName: false,
         isCollapsed: false,
         childCount: 1,
         childActivity: {
@@ -1059,7 +1062,7 @@ describe("ThreadRow", () => {
         options: {
           kind: "parent",
           depth: 1,
-          isCompact: false,
+          hideBranchName: false,
           isCollapsed,
           childCount: 1,
           childActivity: NO_COLLAPSED_CHILD_ACTIVITY,
@@ -1409,7 +1412,7 @@ describe("ThreadRow", () => {
         options: {
           kind: "parent",
           depth: 1,
-          isCompact: false,
+          hideBranchName: false,
           isCollapsed: true,
           childCount: 1,
           childActivity: {
@@ -1441,7 +1444,7 @@ describe("ThreadRow", () => {
       options: {
         kind: "parent",
         depth: 1,
-        isCompact: false,
+        hideBranchName: false,
         isCollapsed: true,
         childCount: 1,
         childActivity: {
@@ -1556,5 +1559,117 @@ describe("ThreadRow", () => {
       "value",
       "Thread",
     );
+  });
+});
+
+describe("thread row meta line", () => {
+  const NOW = 1_800_000_000_000;
+
+  function renderMetaRow({
+    hideBranchName = false,
+    thread,
+  }: {
+    hideBranchName?: boolean;
+    thread: ThreadListEntry;
+  }) {
+    return renderThreadRow({
+      options: { ...DEFAULT_OPTIONS, hideBranchName },
+      thread,
+    });
+  }
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows the branch name and how long ago an idle thread was updated", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const { container } = renderMetaRow({
+      thread: createThread({
+        environmentBranchName: "bb/sidebar-visuals",
+        status: "idle",
+        updatedAt: NOW - 5 * 60_000,
+      }),
+    });
+
+    const meta = container.querySelector("[data-sidebar-thread-meta]");
+    expect(meta?.textContent).toContain("bb/sidebar-visuals");
+    expect(
+      meta?.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
+    ).toBe("5m ago");
+    expect(
+      meta?.querySelector("[data-sidebar-thread-processing-time]"),
+    ).toBeNull();
+  });
+
+  it("omits the branch name when the row sits under an environment group", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const { container } = renderMetaRow({
+      hideBranchName: true,
+      thread: createThread({
+        environmentBranchName: "bb/sidebar-visuals",
+        status: "idle",
+        updatedAt: NOW - 5 * 60_000,
+      }),
+    });
+
+    const meta = container.querySelector("[data-sidebar-thread-meta]");
+    expect(meta?.textContent).not.toContain("bb/sidebar-visuals");
+    expect(
+      meta?.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
+    ).toBe("5m ago");
+  });
+
+  it("counts up from the status change while the thread is processing", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const { container } = renderMetaRow({
+      thread: createThread({
+        environmentBranchName: "bb/sidebar-visuals",
+        status: "active",
+        runtime: { displayStatus: "active", hostReconnectGraceExpiresAt: null },
+        statusChangedAt: NOW - 90_000,
+        updatedAt: NOW - 5 * 60_000,
+      }),
+    });
+
+    const processing = container.querySelector(
+      "[data-sidebar-thread-processing-time]",
+    );
+    expect(processing?.textContent).toBe("1m 30s");
+    expect(Array.from(processing?.classList ?? [])).toContain(
+      SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
+    );
+    expect(
+      container.querySelector("[data-sidebar-thread-idle-time]"),
+    ).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(2_000);
+    });
+    expect(
+      container.querySelector("[data-sidebar-thread-processing-time]")
+        ?.textContent,
+    ).toBe("1m 32s");
+  });
+
+  it("paints the runtime spinner in the processing color", () => {
+    const { container } = renderMetaRow({
+      thread: createThread({
+        status: "active",
+        runtime: { displayStatus: "active", hostReconnectGraceExpiresAt: null },
+      }),
+    });
+
+    const spinner = screen.getByLabelText("Thread working");
+    expect(spinner.getAttribute("data-icon")).toBe("Loading");
+    expect(Array.from(spinner.classList)).toContain(
+      SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
+    );
+    expect(
+      container.querySelector("[data-sidebar-thread-processing-time]"),
+    ).not.toBeNull();
   });
 });

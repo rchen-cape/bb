@@ -528,11 +528,15 @@ export function makeThread(overrides: Partial<Thread> = {}): Thread {
 export function makeThreadListEntry(
   overrides: Parameters<typeof makeThreadListEntryFixture>[0] = {},
 ) {
+  const now = Date.now();
   return makeThreadListEntryFixture({
     id: "thr_demo",
     projectId: PROJECT_IDS.bb,
     title: "Audit recurring permission failures",
     titleFallback: "Audit recurring permission failures",
+    environmentBranchName: BRANCH_NAMES.feature,
+    statusChangedAt: now - 95_000,
+    updatedAt: now - 22 * 60_000,
     ...overrides,
   });
 }

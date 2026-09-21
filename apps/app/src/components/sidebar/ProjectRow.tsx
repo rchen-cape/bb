@@ -514,7 +514,7 @@ function getThreadRowOptions({
   const depth = getThreadRowDepth({ depthOffset, nodeDepth, variant });
   const baseOptions = {
     depth,
-    isCompact: nodeDepth > 0 || isEnvGrouped,
+    hideBranchName: isEnvGrouped,
     ...(consumeClickSuppression ? { consumeClickSuppression } : {}),
     ...(dragBindings ? { dragBindings } : {}),
     ...(nestDrop ? { nestDrop } : {}),

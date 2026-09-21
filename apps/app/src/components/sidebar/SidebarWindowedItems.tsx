@@ -19,7 +19,7 @@ import {
 } from "./sidebarThreadShortcuts";
 
 const WINDOW_VIEWPORT_MARGIN_PX = 240;
-const DEFAULT_ROW_HEIGHT_PX = 30;
+const DEFAULT_ROW_HEIGHT_PX = 42;
 
 interface MeasuredItemHeight {
   height: number;

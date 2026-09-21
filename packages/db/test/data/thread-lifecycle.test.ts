@@ -11,6 +11,7 @@ import {
   markThreadDeleted,
   requireThreadLifecycleEventApplied,
   ThreadLifecycleEventNotAppliedError,
+  updateThread,
 } from "../../src/data/threads.js";
 import { createProject } from "../../src/data/projects.js";
 import { upsertHost } from "../../src/data/hosts.js";
@@ -294,6 +295,45 @@ describe("applyThreadLifecycleEvent", () => {
           testCase.attention ? now : thread.latestAttentionAt,
         );
       }
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stamps statusChangedAt on every transition and keeps it across other row edits", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(1_000);
+      const { db, project } = setup();
+      const thread = createThread(db, noopNotifier, {
+        projectId: project.id,
+        providerId: "codex",
+        status: "starting",
+      });
+      expect(thread.statusChangedAt).toBe(1_000);
+
+      vi.setSystemTime(2_000);
+      const started = applyThreadLifecycleEvent(db, {
+        event: { type: "run.started" },
+        threadId: thread.id,
+      });
+      expect(started.applied && started.thread.statusChangedAt).toBe(2_000);
+
+      vi.setSystemTime(3_000);
+      updateThread(db, noopNotifier, thread.id, {
+        title: "Renamed while running",
+        lastReadAt: 3_000,
+      });
+      const afterEdit = getThread(db, thread.id);
+      expect(afterEdit?.updatedAt).toBe(3_000);
+      expect(afterEdit?.statusChangedAt).toBe(2_000);
+
+      vi.setSystemTime(4_000);
+      const finished = applyThreadLifecycleEvent(db, {
+        event: { type: "run.succeeded" },
+        threadId: thread.id,
+      });
+      expect(finished.applied && finished.thread.statusChangedAt).toBe(4_000);
     } finally {
       vi.useRealTimers();
     }

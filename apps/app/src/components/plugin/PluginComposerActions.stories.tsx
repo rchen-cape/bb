@@ -219,7 +219,7 @@ const STATUS_ACTIONS = [
 const THREAD_ROW_OPTIONS: ThreadRowOptions = {
   kind: "default",
   depth: 1,
-  isCompact: false,
+  hideBranchName: false,
 };
 
 function ThreadRowStatusFixture() {

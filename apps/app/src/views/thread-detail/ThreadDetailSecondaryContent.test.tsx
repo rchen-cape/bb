@@ -230,6 +230,7 @@ function makeThread(): ThreadDetailSecondaryContentProps["metadata"]["thread"] {
     id: "thread-1",
     lastReadAt: null,
     latestAttentionAt: 0,
+    statusChangedAt: 0,
     parentThreadId: null,
     pinnedAt: null,
     projectId: "proj-test",

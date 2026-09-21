@@ -239,17 +239,17 @@ function WorkflowAndRuntimeActiveThreadRow() {
 const defaultOption: ThreadRowOptions = {
   kind: "default",
   depth: 1,
-  isCompact: false,
+  hideBranchName: false,
 };
 const childOption: ThreadRowOptions = {
   kind: "default",
   depth: 2,
-  isCompact: true,
+  hideBranchName: false,
 };
 const projectlessOption: ThreadRowOptions = {
   kind: "default",
   depth: 0,
-  isCompact: false,
+  hideBranchName: false,
 };
 function parentOption(
   overrides: Partial<Extract<ThreadRowOptions, { kind: "parent" }>> = {},
@@ -257,7 +257,7 @@ function parentOption(
   return {
     kind: "parent",
     depth: 1,
-    isCompact: false,
+    hideBranchName: false,
     isCollapsed: false,
     childCount: 0,
     childActivity: NO_COLLAPSED_CHILD_ACTIVITY,
@@ -281,7 +281,10 @@ const childThread = makeThread({
 export function Overview() {
   return (
     <StoryCard>
-      <StoryRow label="idle" hint="quiet thread, title then trailing slot">
+      <StoryRow
+        label="idle"
+        hint="quiet thread: title, then branch and last-updated under it"
+      >
         <SidebarStage>
           <StoryThreadRow
             projectId="proj_demo"
@@ -289,6 +292,40 @@ export function Overview() {
             thread={makeThread()}
             isActive={false}
             options={defaultOption}
+          />
+        </SidebarStage>
+      </StoryRow>
+      <StoryRow
+        label="processing"
+        hint="a running thread counts up from its status change in the activity color"
+      >
+        <SidebarStage>
+          <StoryThreadRow
+            projectId="proj_demo"
+            crossProjectId={null}
+            thread={makeThread({
+              status: "active",
+              runtime: {
+                displayStatus: "active",
+                hostReconnectGraceExpiresAt: null,
+              },
+            })}
+            isActive={false}
+            options={defaultOption}
+          />
+        </SidebarStage>
+      </StoryRow>
+      <StoryRow
+        label="environment-grouped"
+        hint="the branch is omitted when the environment header above already names it"
+      >
+        <SidebarStage>
+          <StoryThreadRow
+            projectId="proj_demo"
+            crossProjectId={null}
+            thread={makeThread()}
+            isActive={false}
+            options={{ ...defaultOption, hideBranchName: true }}
           />
         </SidebarStage>
       </StoryRow>

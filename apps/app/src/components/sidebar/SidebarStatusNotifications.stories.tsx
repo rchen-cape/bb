@@ -30,7 +30,7 @@ const ANIMATION_WORKING_MS = 650;
 const defaultThreadOption: ThreadRowOptions = {
   kind: "default",
   depth: 1,
-  isCompact: false,
+  hideBranchName: false,
 };
 
 type RollupSignal = "working" | "unreadDone" | "needsUser" | "unreadError";

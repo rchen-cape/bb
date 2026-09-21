@@ -557,6 +557,9 @@ function printThreadStatus(
     printEnvironmentPullRequest(pullRequest);
   }
   console.log(`  Created: ${new Date(thread.createdAt).toLocaleString()}`);
+  console.log(
+    `  Status changed: ${new Date(thread.statusChangedAt).toLocaleString()}`,
+  );
   console.log(`  Updated: ${new Date(thread.updatedAt).toLocaleString()}`);
 }
 

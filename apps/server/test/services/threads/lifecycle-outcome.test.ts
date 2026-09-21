@@ -206,6 +206,7 @@ describe("applyLoggedThreadLifecycleEvent", () => {
           },
           activity: NO_ACTIVITY,
           latestAttentionAt: row?.latestAttentionAt,
+          statusChangedAt: row?.statusChangedAt,
           updatedAt: row?.updatedAt,
         },
       },

@@ -65,6 +65,7 @@ import {
   SIDEBAR_ROW_UNREAD_STATE_CLASS,
   SIDEBAR_ROW_GLYPH_SLOT_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
+  SIDEBAR_ROW_META_MUTED_CLASS,
   SIDEBAR_ROW_META_TEXT_CLASS,
   SIDEBAR_ROW_SELECTED_STATE_CLASS,
   SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
@@ -264,6 +265,82 @@ function PluginThreadRowStatusIndicator({
   );
 }
 
+function ThreadRowProcessingTime({ activeSince }: { activeSince: number }) {
+  const elapsedMs = Math.max(0, useSecondTick() - activeSince);
+  return (
+    <span
+      data-sidebar-thread-processing-time=""
+      className={cn(
+        "shrink-0 font-medium tabular-nums",
+        SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
+      )}
+    >
+      {durationToCompactString(elapsedMs)}
+    </span>
+  );
+}
+
+function ThreadRowIdleTime({ updatedAt }: { updatedAt: number }) {
+  const now = useMinuteTick();
+  return (
+    <span
+      data-sidebar-thread-idle-time=""
+      className={cn("shrink-0", SIDEBAR_ROW_META_MUTED_CLASS)}
+    >
+      {formatRelativeTime({ now, timestamp: updatedAt })}
+    </span>
+  );
+}
+
+interface ThreadRowMetaProps {
+  activeSince: number | null;
+  branchName: string | null;
+  updatedAt: number;
+}
+
+function ThreadRowMeta({
+  activeSince,
+  branchName,
+  updatedAt,
+}: ThreadRowMetaProps) {
+  return (
+    <span
+      data-sidebar-thread-meta=""
+      className={cn(
+        "flex min-w-0 items-center gap-1",
+        SIDEBAR_ROW_META_TEXT_CLASS,
+      )}
+    >
+      {branchName === null ? null : (
+        <>
+          <span
+            className={cn(
+              "flex min-w-0 items-center gap-1",
+              SIDEBAR_ROW_META_MUTED_CLASS,
+            )}
+          >
+            <Icon name="GitBranch" className="size-3 shrink-0" aria-hidden />
+            <span className="truncate" title={branchName}>
+              {branchName}
+            </span>
+          </span>
+          <span
+            aria-hidden
+            className={cn("shrink-0", SIDEBAR_ROW_META_MUTED_CLASS)}
+          >
+            ·
+          </span>
+        </>
+      )}
+      {activeSince === null ? (
+        <ThreadRowIdleTime updatedAt={updatedAt} />
+      ) : (
+        <ThreadRowProcessingTime activeSince={activeSince} />
+      )}
+    </span>
+  );
+}
+
 function getThreadRowStyle(depth: number): CSSProperties {
   return {
     paddingLeft: getSidebarThreadRowPaddingLeft(depth),
@@ -285,6 +362,7 @@ function renderThreadRowContainer({
   const containerProps = {
     className,
     style,
+    "data-sidebar-thread-row": "",
     "data-sidebar-nest-target": nestTargetState ?? undefined,
     "data-sidebar-reorder-placement": reorderPlacement ?? undefined,
     ...dragBindings?.attributes,
@@ -627,6 +705,10 @@ function ThreadRowComponent({
     pluginThreadRowStatus,
   );
   const trailingIndicatorKind = trailingIndicatorResolution.indicatorKind;
+  const metaActiveSince = threadRuntimeBusy ? thread.statusChangedAt : null;
+  const metaBranchName = options.hideBranchName
+    ? null
+    : thread.environmentBranchName;
   const rowHighlight = resolveThreadListRowHighlight(trailingIndicatorState);
   const splitIndicatorIsWorking = hasThreadListWorkingActivity(
     trailingIndicatorState,
@@ -651,9 +733,7 @@ function ThreadRowComponent({
     SIDEBAR_ROW_BASE_CLASS,
     LIST_HOVER_TRANSITION,
     parentOptions?.stickyLevel === undefined && "relative",
-    options.isCompact
-      ? COARSE_POINTER_COMPACT_ROW_HEIGHT_CLASS
-      : COARSE_POINTER_ROW_HEIGHT_CLASS,
+    COARSE_POINTER_THREAD_ROW_HEIGHT_CLASS,
     showActive
       ? SIDEBAR_ROW_SELECTED_STATE_CLASS
       : SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
@@ -715,52 +795,59 @@ function ThreadRowComponent({
       />
       <span
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-1.5",
+          "flex min-w-0 flex-1 flex-col justify-center",
           !shortcut && SIDEBAR_HOVER_ACTIONS_INSET_CLASS,
         )}
       >
-        {isEditing ? (
-          <span className="relative z-10 min-w-0 flex-1 overflow-visible">
-            {editor}
-          </span>
-        ) : (
-          <span
-            className="bb-thread-title"
-            title={labelTitle}
-            onDoubleClick={startTitleEditing}
-          >
-            <ThreadTitleMentions title={threadTitle} />
-          </span>
-        )}
-        {crossProjectLabel !== null ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                data-sidebar-thread-cross-project=""
-                role="img"
-                aria-label={crossProjectLabel}
-                className="relative top-px z-10 flex shrink-0 items-center text-muted-foreground"
-                onClick={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  rowLinkRef.current?.click();
-                }}
-              >
-                <Icon name="FolderExport" className="size-3.5" aria-hidden />
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="top">{crossProjectLabel}</TooltipContent>
-          </Tooltip>
-        ) : null}
-        {parentOptions && hasChildren ? (
-          <SidebarChildToggleChevron
-            isCollapsed={isParentCollapsed}
-            expandLabel={`Expand ${labelTitle} threads`}
-            collapseLabel={`Collapse ${labelTitle} threads`}
-            onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
-            revealOnHover={!isParentCollapsed}
-          />
-        ) : null}
+        <span className="flex min-w-0 items-center gap-1.5">
+          {isEditing ? (
+            <span className="relative z-10 min-w-0 flex-1 overflow-visible">
+              {editor}
+            </span>
+          ) : (
+            <span
+              className="bb-thread-title"
+              title={labelTitle}
+              onDoubleClick={startTitleEditing}
+            >
+              <ThreadTitleMentions title={threadTitle} />
+            </span>
+          )}
+          {crossProjectLabel !== null ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  data-sidebar-thread-cross-project=""
+                  role="img"
+                  aria-label={crossProjectLabel}
+                  className="relative top-px z-10 flex shrink-0 items-center text-muted-foreground"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    rowLinkRef.current?.click();
+                  }}
+                >
+                  <Icon name="FolderExport" className="size-3.5" aria-hidden />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">{crossProjectLabel}</TooltipContent>
+            </Tooltip>
+          ) : null}
+          {parentOptions && hasChildren ? (
+            <SidebarChildToggleChevron
+              isCollapsed={isParentCollapsed}
+              expandLabel={`Expand ${labelTitle} threads`}
+              collapseLabel={`Collapse ${labelTitle} threads`}
+              onToggle={() => parentOptions.onToggleCollapsed(thread.id)}
+              revealOnHover={!isParentCollapsed}
+            />
+          ) : null}
+        </span>
+        <ThreadRowMeta
+          activeSince={metaActiveSince}
+          branchName={metaBranchName}
+          updatedAt={thread.updatedAt}
+        />
       </span>
       <span className="flex shrink-0 items-center gap-0.5">
         {shortcut ? (
