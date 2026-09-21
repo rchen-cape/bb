@@ -53,6 +53,7 @@
   --color-warning-text: var(--warning-text);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
   --color-diff-added: var(--diff-added);
   /* GitHub's merged-PR purple — the one chromatic exception in the PR state
    * dots, matching the universal merged-PR color language. */
@@ -74,6 +75,7 @@
   --color-surface-destructive: var(--surface-destructive);
   --color-surface-destructive-border: var(--surface-destructive-border);
   --color-surface-attention: var(--surface-attention);
+  --color-surface-success: var(--surface-success);
   --color-surface-selected: var(--surface-selected);
   --color-surface-selected-border: var(--surface-selected-border);
   --color-sidebar: var(--sidebar);
@@ -242,43 +244,57 @@
     background-color: var(--bb-sidebar-open-in-split-background);
   }
 
-  /* A thread waiting on the user has to read as the loudest row in the sidebar,
-     so resolve the attention tint against the sidebar opaquely rather than
-     layering a faint translucent surface over whatever sits beneath. */
+  /* A thread waiting on the user is the loudest row in the sidebar, and an
+     unread finished thread the second loudest. Both paint a translucent tint
+     over an opaque sidebar rather than mixing the hued token into --sidebar
+     directly: --sidebar is achromatic, so an oklch mix interpolates its hue
+     toward 0 and turns attention and success alike into pink. */
   .bb-sidebar-attention-row {
-    --bb-sidebar-attention-background: color-mix(
-      in oklch,
+    --bb-sidebar-attention-tint: color-mix(
+      in oklab,
       var(--attention) 22%,
-      var(--sidebar)
+      transparent
     );
-    background-color: var(--bb-sidebar-attention-background);
+    background-color: var(--sidebar);
+    background-image: linear-gradient(
+      var(--bb-sidebar-attention-tint),
+      var(--bb-sidebar-attention-tint)
+    );
   }
 
+  .bb-sidebar-unread-row {
+    --bb-sidebar-unread-tint: color-mix(
+      in oklab,
+      var(--success) 20%,
+      transparent
+    );
+    background-color: var(--sidebar);
+    background-image: linear-gradient(
+      var(--bb-sidebar-unread-tint),
+      var(--bb-sidebar-unread-tint)
+    );
+  }
+
+  /* A sticky row cannot rely on its own background-color: a selected row's
+     translucent utility fill replaces it, and scrolled descendants would paint
+     through. Stack the tint over an opaque sidebar layer instead. */
   [data-sidebar-sticky-stack]
     [data-sidebar-sticky-tier].bb-sidebar-attention-row {
-    background-image: linear-gradient(
-      var(--bb-sidebar-attention-background),
-      var(--bb-sidebar-attention-background)
-    );
-  }
-
-  /* A finished thread the user has not read yet is the other half of the same
-     signal, in green: new output to look at rather than a thread blocked on a
-     reply. Resolved opaquely for the same sticky-row reason. */
-  .bb-sidebar-unread-row {
-    --bb-sidebar-unread-background: color-mix(
-      in oklch,
-      var(--success) 20%,
-      var(--sidebar)
-    );
-    background-color: var(--bb-sidebar-unread-background);
+    background-image:
+      linear-gradient(
+        var(--bb-sidebar-attention-tint),
+        var(--bb-sidebar-attention-tint)
+      ),
+      linear-gradient(var(--sidebar), var(--sidebar));
   }
 
   [data-sidebar-sticky-stack] [data-sidebar-sticky-tier].bb-sidebar-unread-row {
-    background-image: linear-gradient(
-      var(--bb-sidebar-unread-background),
-      var(--bb-sidebar-unread-background)
-    );
+    background-image:
+      linear-gradient(
+        var(--bb-sidebar-unread-tint),
+        var(--bb-sidebar-unread-tint)
+      ),
+      linear-gradient(var(--sidebar), var(--sidebar));
   }
 
   /* Utility-layer bg-sidebar owns the sticky tier's base background-color, so
@@ -511,6 +527,7 @@
   --attention: oklch(0.74 0.15 80);
   --warning: oklch(0.7 0.16 50);
   --warning-text: oklch(0.55 0.14 50);
+  --success-text: oklch(0.5 0.12 155);
   --success: oklch(0.7 0.15 155);
   --success-foreground: color-mix(in oklch, var(--success) 45%, var(--ink));
   --diff-added: oklch(0.4 0.13 163);
@@ -557,6 +574,7 @@
    * waiting for you", a tier below destructive's "this is broken". Translucent
    * so it composites over card and page alike. */
   --surface-attention: color-mix(in oklab, var(--attention) 14%, transparent);
+  --surface-success: color-mix(in oklab, var(--success) 14%, transparent);
   --surface-selected: color-mix(in oklab, var(--primary) 16%, transparent);
   --surface-selected-border: color-mix(
     in oklab,
@@ -750,6 +768,7 @@
   --attention: oklch(0.8 0.15 80);
   --warning: oklch(0.75 0.16 50);
   --warning-text: oklch(0.75 0.16 50);
+  --success-text: oklch(0.78 0.14 155);
   --success: oklch(0.74 0.15 155);
   --success-foreground: color-mix(in oklch, var(--success) 45%, var(--ink));
   --diff-added: oklch(0.77 0.17 163);
@@ -788,6 +807,7 @@
     transparent
   );
   --surface-attention: color-mix(in oklab, var(--attention) 12%, transparent);
+  --surface-success: color-mix(in oklab, var(--success) 12%, transparent);
   --surface-selected: color-mix(in oklab, var(--primary) 12%, transparent);
   --surface-selected-border: color-mix(
     in oklab,

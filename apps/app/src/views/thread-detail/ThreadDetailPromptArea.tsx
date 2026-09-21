@@ -1831,30 +1831,42 @@ export function ThreadDetailPromptArea({
         hasAddressed: addressedAwaitingReplyThreadId === thread.id,
         hasPendingInteraction,
         isComposerHidden: shouldHideComposer,
+        isThreadIdle: thread.status === "idle",
       })
     ) {
       return null;
     }
     return (
       <ThreadAwaitingReplyCard
+        draftText={currentPromptDraft.text}
         isDismissPending={dismissAwaitingReply.isPending}
-        onAddress={() => {
+        isSendDisabled={isFollowUpSubmitting || submitMode.kind === "blocked"}
+        onDeclineFollowUp={() => {
+          dismissAwaitingReply.mutate({ threadId: thread.id });
+        }}
+        onDraftChange={(text) => {
+          promptDraft.setTextAndMentions(text, []);
+        }}
+        onSend={handleBottomComposerSubmit}
+        onUseComposer={() => {
           setAddressedAwaitingReplyThreadId(thread.id);
           requestComposerFocus(promptDraft.storageKey);
-        }}
-        onDecline={() => {
-          dismissAwaitingReply.mutate({ threadId: thread.id });
         }}
       />
     );
   }, [
     addressedAwaitingReplyThreadId,
+    currentPromptDraft.text,
     dismissAwaitingReply,
+    handleBottomComposerSubmit,
     hasPendingInteraction,
-    promptDraft.storageKey,
+    isFollowUpSubmitting,
+    promptDraft,
     shouldHideComposer,
+    submitMode.kind,
     thread.awaitingUserReply,
     thread.id,
+    thread.status,
   ]);
   const childPendingInteractionBanners = useMemo(
     () =>
@@ -1872,7 +1884,6 @@ export function ThreadDetailPromptArea({
     () => (
       <>
         {childPendingInteractionBanners}
-        {awaitingReplyCard}
         {activeWorkflows.map((workflow) => (
           <ThreadWorkflowCard
             key={workflow.id}
@@ -1972,7 +1983,6 @@ export function ThreadDetailPromptArea({
     [
       canUseGitUi,
       childPendingInteractionBanners,
-      awaitingReplyCard,
       contextBannerMergeBase,
       environmentHostId,
       expandedBannerSection,
@@ -2051,7 +2061,7 @@ export function ThreadDetailPromptArea({
       id={THREAD_DETAIL_COMPOSER_TEXTAREA_ID}
       attachments={bottomAttachmentsConfig}
       stack={pendingInteractionNode ? pendingInteractionStack : promptStack}
-      pendingInteraction={pendingInteractionNode}
+      pendingInteraction={pendingInteractionNode ?? awaitingReplyCard}
       activePromptMode={isHandoffSelection ? null : activePromptMode}
       composer={shouldHideComposer ? null : bottomComposerConfig}
       pluginComposerHost={normalPluginComposerHost}
