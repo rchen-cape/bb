@@ -361,7 +361,7 @@ describe("thread-activity", () => {
 
       expect(threadListIndicatorStateForThread(thread, false)).toEqual({
         hasPendingInteraction: true,
-        isAwaitingReply: true,
+        isAwaitingReply: false,
         hasUnsubmittedDraft: false,
         hasUnreadError: false,
         hasUnreadSuccess: false,
@@ -377,19 +377,30 @@ describe("thread-activity", () => {
   });
 
   describe("isAwaitingUserReplyThread", () => {
-    it("treats a settled top-level thread as waiting on its user", () => {
+    it("trusts the server's flag on a settled top-level thread", () => {
       expect(
-        isAwaitingUserReplyThread({ parentThreadId: null, status: "idle" }),
+        isAwaitingUserReplyThread({
+          awaitingUserReply: true,
+          parentThreadId: null,
+          status: "idle",
+        }),
       ).toBe(true);
     });
 
     it.each([
-      ["a child thread reports to its parent", "thr-parent", "idle"],
-      ["a thread that never ran is not waiting", null, "pending"],
-      ["a running thread is not waiting", null, "active"],
-      ["a failed thread reads as an error, not a question", null, "error"],
-    ] as const)("%s", (_label, parentThreadId, status) => {
-      expect(isAwaitingUserReplyThread({ parentThreadId, status })).toBe(false);
+      ["the server saw no question", false, null, "idle"],
+      ["a child thread reports to its parent", true, "thr-parent", "idle"],
+      ["a thread that never ran is not waiting", true, null, "pending"],
+      ["a thread already running again is not waiting", true, null, "active"],
+      ["a failed thread reads as an error", true, null, "error"],
+    ] as const)("%s", (_label, awaitingUserReply, parentThreadId, status) => {
+      expect(
+        isAwaitingUserReplyThread({
+          awaitingUserReply,
+          parentThreadId,
+          status,
+        }),
+      ).toBe(false);
     });
   });
 

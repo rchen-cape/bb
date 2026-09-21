@@ -68,15 +68,19 @@ export function isBusyThread(
 }
 
 /**
- * A top-level thread that has run and settled back to idle is waiting on its
- * user: had they answered, the thread would be starting or active instead. A
- * `pending` thread has never run and a child thread reports to its parent, so
- * neither is waiting on anyone.
+ * Whether a thread is sitting on a question for its user. The server decides
+ * that from the closing passage of the last completed turn; a row only trusts
+ * the flag once the thread has actually settled, so a thread already running
+ * again is never waiting. A child thread reports to its parent, not the user.
  */
 export function isAwaitingUserReplyThread(
-  thread: Pick<Thread, "parentThreadId" | "status">,
+  thread: Pick<Thread, "awaitingUserReply" | "parentThreadId" | "status">,
 ): boolean {
-  return thread.parentThreadId === null && thread.status === "idle";
+  return (
+    thread.awaitingUserReply &&
+    thread.parentThreadId === null &&
+    thread.status === "idle"
+  );
 }
 
 export interface ThreadListIndicatorState {

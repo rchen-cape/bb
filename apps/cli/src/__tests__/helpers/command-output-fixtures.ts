@@ -122,6 +122,7 @@ export function makeThread(overrides: MakeThreadArgs): Thread {
     deletedAt: null,
     lastReadAt: null,
     latestAttentionAt: Date.now(),
+    awaitingUserReply: false,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     ...overrides,

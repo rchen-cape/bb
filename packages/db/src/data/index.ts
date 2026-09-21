@@ -67,6 +67,7 @@ export {
   hasActiveThreadAttention,
   setThreadExecutionOverride,
   getThreadStartupContext,
+  setThreadAwaitingUserReply,
   setThreadStartupContext,
   listHostThreadIds,
   listActiveHostThreads,

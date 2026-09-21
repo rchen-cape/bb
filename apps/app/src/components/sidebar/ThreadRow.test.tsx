@@ -856,7 +856,11 @@ describe("ThreadRow", () => {
 
   it("paints an orange row while a read thread waits on the user", () => {
     const { container } = renderThreadRow({
-      thread: createThread({ lastReadAt: 5, latestAttentionAt: 1 }),
+      thread: createThread({
+        awaitingUserReply: true,
+        lastReadAt: 5,
+        latestAttentionAt: 1,
+      }),
     });
 
     const row = container.querySelector(".bb-sidebar-attention-row");
@@ -876,6 +880,15 @@ describe("ThreadRow", () => {
     expect(container.querySelector(".bb-sidebar-attention-row")).not.toBeNull();
   });
 
+  it("leaves a settled thread untinted when the agent asked nothing", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({ lastReadAt: 5, latestAttentionAt: 1 }),
+    });
+
+    expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
+    expect(container.querySelector(".bb-sidebar-unread-row")).toBeNull();
+  });
+
   it("paints a green row for a finished thread the user has not read", () => {
     const { container } = renderThreadRow({
       thread: createThread({ lastReadAt: 0, latestAttentionAt: 5 }),
@@ -888,6 +901,7 @@ describe("ThreadRow", () => {
   it("leaves a working thread untinted", () => {
     const { container } = renderThreadRow({
       thread: createThread({
+        awaitingUserReply: true,
         status: "active",
         lastReadAt: 5,
         latestAttentionAt: 1,
@@ -902,6 +916,7 @@ describe("ThreadRow", () => {
   it("leaves a thread untinted once the user's reply is queued", () => {
     const { container } = renderThreadRow({
       thread: createThread({
+        awaitingUserReply: true,
         lastReadAt: 5,
         latestAttentionAt: 1,
         queuedWork: "waiting",
@@ -914,6 +929,7 @@ describe("ThreadRow", () => {
   it("does not tint a child thread that is idle", () => {
     const { container } = renderThreadRow({
       thread: createThread({
+        awaitingUserReply: true,
         lastReadAt: 5,
         latestAttentionAt: 1,
         parentThreadId: "thr_parent",

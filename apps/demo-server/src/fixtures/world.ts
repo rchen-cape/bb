@@ -60,6 +60,7 @@ export function threadListEntry(
     deletedAt: null,
     lastReadAt: now,
     latestAttentionAt: updatedAt,
+    awaitingUserReply: false,
     createdAt: seedStartedAt(seed, now),
     updatedAt,
     runtime: {
