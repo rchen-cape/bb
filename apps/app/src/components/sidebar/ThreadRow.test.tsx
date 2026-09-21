@@ -854,36 +854,73 @@ describe("ThreadRow", () => {
     ).toBe("CircleQuestion");
   });
 
-  it("tints the whole row when the thread needs user input", () => {
-    const { container, rerenderThreadRow } = renderThreadRow({
-      thread: createThread({ hasPendingInteraction: true }),
+  it("paints an orange row while a read thread waits on the user", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({ lastReadAt: 5, latestAttentionAt: 1 }),
     });
 
-    expect(
-      container.querySelector(".bb-sidebar-attention-row"),
-    ).not.toBeNull();
+    const row = container.querySelector(".bb-sidebar-attention-row");
+    expect(row).not.toBeNull();
+    expect(container.querySelector(".bb-sidebar-unread-row")).toBeNull();
+  });
 
-    rerenderThreadRow(createThread({ hasPendingInteraction: false }));
+  it("paints an orange row for a pending interaction even while working", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({
+        status: "active",
+        hasPendingInteraction: true,
+        runtime: { displayStatus: "active", hostReconnectGraceExpiresAt: null },
+      }),
+    });
+
+    expect(container.querySelector(".bb-sidebar-attention-row")).not.toBeNull();
+  });
+
+  it("paints a green row for a finished thread the user has not read", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({ lastReadAt: 0, latestAttentionAt: 5 }),
+    });
+
+    expect(container.querySelector(".bb-sidebar-unread-row")).not.toBeNull();
+    expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
+  });
+
+  it("leaves a working thread untinted", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({
+        status: "active",
+        lastReadAt: 5,
+        latestAttentionAt: 1,
+        runtime: { displayStatus: "active", hostReconnectGraceExpiresAt: null },
+      }),
+    });
+
+    expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
+    expect(container.querySelector(".bb-sidebar-unread-row")).toBeNull();
+  });
+
+  it("leaves a thread untinted once the user's reply is queued", () => {
+    const { container } = renderThreadRow({
+      thread: createThread({
+        lastReadAt: 5,
+        latestAttentionAt: 1,
+        queuedWork: "waiting",
+      }),
+    });
 
     expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
   });
 
-  it("tints a collapsed parent whose hidden child needs user input", () => {
+  it("does not tint a child thread that is idle", () => {
     const { container } = renderThreadRow({
-      options: {
-        kind: "parent",
-        depth: 0,
-        isCompact: false,
-        isCollapsed: true,
-        childCount: 1,
-        childActivity: { ...NO_COLLAPSED_CHILD_ACTIVITY, pending: true },
-        onToggleCollapsed: () => {},
-      },
+      thread: createThread({
+        lastReadAt: 5,
+        latestAttentionAt: 1,
+        parentThreadId: "thr_parent",
+      }),
     });
 
-    expect(
-      container.querySelector(".bb-sidebar-attention-row"),
-    ).not.toBeNull();
+    expect(container.querySelector(".bb-sidebar-attention-row")).toBeNull();
   });
 
   it("clocks a thread with queued work, and drops the clock once it runs", () => {

@@ -45,10 +45,12 @@ import {
   hasActiveWorkflowActivity,
   isRuntimeBusyThread,
   isUnreadDoneThread,
+  isAwaitingUserReplyThread,
   getThreadListIndicatorLabel,
   hasThreadListWorkingActivity,
   NO_COLLAPSED_CHILD_ACTIVITY,
   resolveThreadListIndicator,
+  resolveThreadListRowHighlight,
   type CollapsedChildActivity,
   type ThreadListIndicatorKind,
   type ThreadListIndicatorState,
@@ -60,6 +62,7 @@ import { LIST_HOVER_TRANSITION } from "@bb/shared-ui/motion";
 import {
   SIDEBAR_ROW_ATTENTION_STATE_CLASS,
   SIDEBAR_ROW_BASE_CLASS,
+  SIDEBAR_ROW_UNREAD_STATE_CLASS,
   SIDEBAR_ROW_GLYPH_SLOT_CLASS,
   SIDEBAR_ROW_INTERACTIVE_STATE_CLASS,
   SIDEBAR_ROW_SELECTED_STATE_CLASS,
@@ -309,6 +312,7 @@ interface ThreadStatusGlyphProps extends ThreadListIndicatorState {
 
 export function ThreadStatusGlyph({
   hasPendingInteraction,
+  isAwaitingReply,
   hasUnsubmittedDraft,
   hasUnreadError,
   hasUnreadSuccess,
@@ -323,6 +327,7 @@ export function ThreadStatusGlyph({
 }: ThreadStatusGlyphProps) {
   const kind = resolveThreadListIndicator({
     hasPendingInteraction,
+    isAwaitingReply,
     hasUnsubmittedDraft,
     hasUnreadError,
     hasUnreadSuccess,
@@ -427,6 +432,7 @@ export function CollapsedThreadStatusGlyph({
 }: CollapsedThreadStatusGlyphProps) {
   const statusProps: ThreadListIndicatorState = {
     hasPendingInteraction: activity.pending,
+    isAwaitingReply: false,
     hasUnsubmittedDraft: activity.hasUnsubmittedDraft,
     hasUnreadError: activity.unreadError,
     hasUnreadSuccess: activity.unread,
@@ -534,6 +540,7 @@ function ThreadRowComponent({
   const threadPlanModeActive = hasActivePlanModeActivity(thread);
   const threadGoalActive = hasActiveGoalActivity(thread);
   const threadUnreadDone = isUnreadDoneThread(thread);
+  const threadAwaitingReply = isAwaitingUserReplyThread(thread);
   const threadUnreadError = threadUnreadDone && thread.status === "error";
   const threadUnreadSuccess = threadUnreadDone && !threadUnreadError;
   const threadTitle = getThreadDisplayTitle(thread);
@@ -586,6 +593,7 @@ function ThreadRowComponent({
   const trailingIndicatorState: ThreadListIndicatorState = {
     hasPendingInteraction:
       hasPendingInteraction || (hasHiddenChildren && childActivity.pending),
+    isAwaitingReply: threadAwaitingReply,
     hasUnsubmittedDraft:
       hasComposerDraft ||
       (hasHiddenChildren && childActivity.hasUnsubmittedDraft),
@@ -613,6 +621,7 @@ function ThreadRowComponent({
     pluginThreadRowStatus,
   );
   const trailingIndicatorKind = trailingIndicatorResolution.indicatorKind;
+  const rowHighlight = resolveThreadListRowHighlight(trailingIndicatorState);
   const splitIndicatorIsWorking = hasThreadListWorkingActivity(
     trailingIndicatorState,
     pluginThreadRowStatus?.tone === "running",
@@ -645,8 +654,8 @@ function ThreadRowComponent({
     !showActive &&
       splitIndicator.isOpenInSplit &&
       SIDEBAR_ROW_OPEN_IN_SPLIT_STATE_CLASS,
-    trailingIndicatorKind === "waiting-for-input" &&
-      SIDEBAR_ROW_ATTENTION_STATE_CLASS,
+    rowHighlight === "attention" && SIDEBAR_ROW_ATTENTION_STATE_CLASS,
+    rowHighlight === "unread" && SIDEBAR_ROW_UNREAD_STATE_CLASS,
     !showActive && "has-[[data-state=open]]:bg-sidebar-accent",
     rowDragBindings && !rowDragBindings.disabled && "select-none",
     nestTargetState && NEST_TARGET_STATE_CLASS[nestTargetState],
