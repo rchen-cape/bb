@@ -266,7 +266,8 @@ function PluginThreadRowStatusIndicator({
 }
 
 function ThreadRowProcessingTime({ activeSince }: { activeSince: number }) {
-  const elapsedMs = Math.max(0, useSecondTick() - activeSince);
+  useSecondTick();
+  const elapsedMs = Math.max(0, Date.now() - activeSince);
   return (
     <span
       data-sidebar-thread-processing-time=""
@@ -280,26 +281,32 @@ function ThreadRowProcessingTime({ activeSince }: { activeSince: number }) {
   );
 }
 
-function ThreadRowIdleTime({ updatedAt }: { updatedAt: number }) {
-  const now = useMinuteTick();
+function ThreadRowIdleTime({ lastActivityAt }: { lastActivityAt: number }) {
+  /*
+   * The tick only schedules the re-render; the clock is read here. Taking the
+   * tick's own value as `now` let a stale one freeze this label, and made a
+   * timestamp newer than the tick read as a negative age — which formats as
+   * "just now" and stays there.
+   */
+  useMinuteTick();
   return (
     <span
       data-sidebar-thread-idle-time=""
       className={cn("shrink-0", SIDEBAR_ROW_META_MUTED_CLASS)}
     >
-      {formatRelativeTime({ now, timestamp: updatedAt })}
+      {formatRelativeTime({ now: Date.now(), timestamp: lastActivityAt })}
     </span>
   );
 }
 
 interface ThreadRowActivityTimeProps {
   activeSince: number | null;
-  updatedAt: number;
+  lastActivityAt: number;
 }
 
 function ThreadRowActivityTime({
   activeSince,
-  updatedAt,
+  lastActivityAt,
 }: ThreadRowActivityTimeProps) {
   return (
     <span
@@ -307,7 +314,7 @@ function ThreadRowActivityTime({
       className={cn("ml-auto shrink-0 pl-1.5", SIDEBAR_ROW_META_TEXT_CLASS)}
     >
       {activeSince === null ? (
-        <ThreadRowIdleTime updatedAt={updatedAt} />
+        <ThreadRowIdleTime lastActivityAt={lastActivityAt} />
       ) : (
         <ThreadRowProcessingTime activeSince={activeSince} />
       )}
@@ -846,7 +853,7 @@ function ThreadRowComponent({
           {isEditing ? null : (
             <ThreadRowActivityTime
               activeSince={metaActiveSince}
-              updatedAt={thread.updatedAt}
+              lastActivityAt={thread.statusChangedAt}
             />
           )}
         </span>

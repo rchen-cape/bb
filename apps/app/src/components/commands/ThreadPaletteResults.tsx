@@ -406,7 +406,9 @@ function ThreadPaletteResultRowComponent({
       ? projectName
       : null;
   const relativeTime = formatRelativeTime({
-    timestamp: thread.updatedAt,
+    // The last status change, not updatedAt: reading a thread bumps that, so
+    // reopening the app would report every thread you glanced at as current.
+    timestamp: thread.statusChangedAt,
     now: Date.now(),
   });
   const metadataText = [

@@ -1584,13 +1584,14 @@ describe("thread row meta line", () => {
     vi.useRealTimers();
   });
 
-  it("shows the branch name under the title and the updated time beside it", () => {
+  it("shows the branch name under the title and the activity time beside it", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
     const { container } = renderMetaRow({
       thread: createThread({
         environmentBranchName: "bb/sidebar-visuals",
         status: "idle",
+        statusChangedAt: NOW - 5 * 60_000,
         updatedAt: NOW - 5 * 60_000,
       }),
     });
@@ -1606,6 +1607,25 @@ describe("thread row meta line", () => {
     ).toBeNull();
   });
 
+  it("reads the age from the last status change, not from any row edit", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    const { container } = renderMetaRow({
+      thread: createThread({
+        status: "idle",
+        // Opening a thread marks it read, and that write bumps updatedAt. The
+        // label has to ignore it, or a thread idle since yesterday reads as
+        // "just now" the moment you reopen the app.
+        statusChangedAt: NOW - 19 * 60 * 60_000,
+        updatedAt: NOW - 3 * 60_000,
+      }),
+    });
+
+    expect(
+      container.querySelector("[data-sidebar-thread-idle-time]")?.textContent,
+    ).toBe("19h ago");
+  });
+
   it("keeps the time on the title line, pushed to its right edge", () => {
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
@@ -1613,6 +1633,7 @@ describe("thread row meta line", () => {
       thread: createThread({
         environmentBranchName: "bb/sidebar-visuals",
         status: "idle",
+        statusChangedAt: NOW - 5 * 60_000,
         updatedAt: NOW - 5 * 60_000,
       }),
     });
@@ -1633,6 +1654,7 @@ describe("thread row meta line", () => {
       thread: createThread({
         environmentBranchName: "bb/sidebar-visuals",
         status: "idle",
+        statusChangedAt: NOW - 5 * 60_000,
         updatedAt: NOW - 5 * 60_000,
       }),
     });
