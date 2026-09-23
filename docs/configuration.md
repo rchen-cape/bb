@@ -1171,6 +1171,21 @@ composer — the one surface that narrates the wait. Inspect them with
 that do not reset on a clock — credit and spend-control exhaustion — schedule
 nothing, because waiting does not fix them.
 
+### Trees plugin
+
+The Trees plugin is an opt-in official plugin: `bb plugin install trees`. It has
+one setting, edited under Plugins → Installed plugins or with
+`bb plugin config trees set <key> <value>`:
+
+| Key             | Default   | Behavior                                                                                                 |
+| --------------- | --------- | -------------------------------------------------------------------------------------------------------- |
+| `rootDirectory` | `~/Trees` | Folder holding one subdirectory per tree project, each with that project's task Markdown files.         |
+
+The value must be absolute or start with `~/`; a relative path is refused. It
+resolves on the primary machine, so `~` expands to the home directory of the
+account running the bb server. Changing it affects trees created afterwards;
+existing trees keep the folder recorded when they were created.
+
 ### Workflows plugin
 
 The builtin Workflows plugin is disabled on fresh installations. Enable it
