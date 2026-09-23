@@ -255,6 +255,7 @@ const NAV_PANEL_REGISTRATION_KEYS: ReadonlySet<string> = new Set(
     fixedTabs: true,
     experimental_sidebarAccessory: true,
     headerContent: true,
+    experimental_headerBreadcrumb: true,
   } satisfies Record<keyof PluginNavPanelRegistration, true>),
 );
 
@@ -690,6 +691,12 @@ export function collectPluginAppRegistrations(
             : {}),
           ...(registration.headerContent !== undefined
             ? { headerContent: registration.headerContent }
+            : {}),
+          ...(registration.experimental_headerBreadcrumb !== undefined
+            ? {
+                experimental_headerBreadcrumb:
+                  registration.experimental_headerBreadcrumb,
+              }
             : {}),
         });
       },

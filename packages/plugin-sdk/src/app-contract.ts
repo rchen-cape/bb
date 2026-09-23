@@ -582,6 +582,17 @@ export interface PluginNavPanelRegistration {
    * throwing headerContent is hidden without breaking the title bar.
    */
   headerContent?: ComponentType<PluginNavPanelProps>;
+  /**
+   * Optional component rendered immediately after the panel title in the
+   * shared title bar, for a breadcrumb tail such as `> <record name>`. The
+   * title stays the breadcrumb root and navigates to the panel root while a
+   * `subPath` is open. Keep it to a single line of text; it shares the title's
+   * space and truncates with it. Contained separately from the body: a
+   * throwing breadcrumb is hidden without breaking the title bar.
+   *
+   * Experimental: see docs/api_to_audit.md.
+   */
+  experimental_headerBreadcrumb?: ComponentType<PluginNavPanelProps>;
 }
 
 /**

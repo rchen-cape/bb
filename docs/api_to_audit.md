@@ -1380,6 +1380,36 @@ the `experimental_fixedTabOpenCalls` inspection list.
 10. Keep core and plugin destinations on the same resolver and verify the
     controller never learns Changes, file, task, or document target shapes.
 
+## `PluginNavPanelRegistration.experimental_headerBreadcrumb`
+
+**What it does.** Lets a nav panel render a breadcrumb tail immediately after
+its title in the shared title bar, so a panel with an open `subPath` reads as
+`<panel title> > <record name>` on one line instead of repeating the panel name
+in a second header row. The component receives the same `subPath` as the page
+component and mounts only while that `subPath` is non-empty. While it is
+mounted the host renders the panel title as a button that navigates to the
+panel root, making the title the breadcrumb root. It shares the title's
+`min-w-0 flex-1` box and truncates with it. A crash hides only the breadcrumb,
+not the title bar.
+
+**Audit before stabilizing.**
+
+1. **Component versus data.** Confirm consumers need a component rather than a
+   declarative trail (an array of `{ label, subPath }` the host renders and
+   links). A declarative trail would let the host own truncation, separators,
+   and navigation, and would stop a plugin from rendering controls in chrome.
+2. **Title as a link.** The host now makes every plugin panel title clickable
+   whenever a `subPath` is open, not only for panels that register a
+   breadcrumb. Decide whether that belongs to this API, should be opt-in, or
+   should apply to all panels regardless of this slot.
+3. **Space sharing.** The tail competes with the title for one line. Revisit
+   the truncation behavior against long panel titles, long record names,
+   localization, and narrow split panes, and decide whether the host should cap
+   the tail's width the way `experimental_sidebarAccessory` is capped.
+4. **Overlap with `headerContent`.** Two slots now write to the same bar from
+   opposite ends. Confirm both are needed, or whether one slot receiving a
+   position would be a better shape.
+
 ## `PluginNavPanelRegistration.experimental_sidebarAccessory`
 
 **Kept experimental (2026-08-22).** one consumer (the tasks plugin); item 1 below (a narrower value/badge contract) would change the API shape.

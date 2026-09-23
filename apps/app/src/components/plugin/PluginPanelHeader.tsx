@@ -1,4 +1,6 @@
 import { Component, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { getPluginPanelRoutePath } from "@/lib/route-paths";
 import type { PluginNavPanelChrome } from "@/lib/plugin-nav-panel-chrome";
 import type { PluginNavPanelSlot } from "@/lib/plugin-slots";
 import { usePluginCss } from "@/lib/plugin-css";
@@ -30,9 +32,25 @@ class HeaderContentBoundary extends Component<
 
 export function PluginPanelHeaderCenter({
   chrome,
+  panel,
+  subPath,
 }: {
   chrome: Pick<PluginNavPanelChrome, "pluginId" | "icon" | "title">;
+  panel?: PluginNavPanelSlot | null;
+  subPath?: string;
 }) {
+  const navigate = useNavigate();
+  const Breadcrumb = panel?.experimental_headerBreadcrumb;
+  usePluginCss(Breadcrumb === undefined ? null : chrome.pluginId);
+  const openSubPath = subPath !== undefined && subPath.length > 0;
+  const rootPath =
+    panel === undefined || panel === null
+      ? null
+      : getPluginPanelRoutePath({
+          pluginId: panel.pluginId,
+          path: panel.path,
+        });
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <PluginIcon
@@ -40,7 +58,33 @@ export function PluginPanelHeaderCenter({
         icon={chrome.icon}
         className="text-muted-foreground"
       />
-      <p className="truncate text-sm font-semibold">{chrome.title}</p>
+      {openSubPath && rootPath !== null ? (
+        <button
+          type="button"
+          className="shrink-0 truncate text-sm font-semibold text-muted-foreground hover:text-foreground hover:underline"
+          onClick={() => void navigate(rootPath)}
+        >
+          {chrome.title}
+        </button>
+      ) : (
+        <p className="truncate text-sm font-semibold">{chrome.title}</p>
+      )}
+      {Breadcrumb === undefined || !openSubPath ? null : (
+        <HeaderContentBoundary
+          key={`${panel?.pluginId}/${panel?.id}/${panel?.generation}`}
+          pluginId={chrome.pluginId}
+        >
+          <PluginContext.Provider value={chrome.pluginId}>
+            <div
+              data-bb-plugin-root=""
+              data-bb-plugin={chrome.pluginId}
+              className="flex min-w-0 items-center"
+            >
+              <Breadcrumb subPath={subPath ?? ""} />
+            </div>
+          </PluginContext.Provider>
+        </HeaderContentBoundary>
+      )}
     </div>
   );
 }
