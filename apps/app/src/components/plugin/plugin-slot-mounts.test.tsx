@@ -1668,10 +1668,10 @@ describe("plugin panel shared title bar and full-bleed body", () => {
     }
     const panel = panelSlot({ headerContent: ExplodingAccessory });
     render(
-      <>
+      <MemoryRouter>
         <PluginPanelHeaderCenter chrome={panel} />
         <PluginPanelHeaderActions panel={panel} subPath="" />
-      </>,
+      </MemoryRouter>,
     );
     expect(screen.getByText("Demo board")).toBeDefined();
     expect(screen.queryByText(/plugin demo crashed/)).toBeNull();
@@ -1685,10 +1685,10 @@ describe("plugin panel shared title bar and full-bleed body", () => {
     const panel = panelSlot({ headerContent: Accessory });
     applyPluginCss("demo", "/demo.css?h=header");
     const view = render(
-      <>
+      <MemoryRouter>
         <PluginPanelHeaderCenter chrome={panel} />
         <PluginPanelHeaderActions panel={panel} subPath="notes/today.md" />
-      </>,
+      </MemoryRouter>,
     );
     expect(screen.getByText("Demo board")).toBeDefined();
     expect(

@@ -209,6 +209,11 @@ export const OFFICIAL_PLUGINS = [
     defaultEnabled: true,
   },
   {
+    name: "trees",
+    pluginId: "trees",
+    defaultEnabled: true,
+  },
+  {
     name: "theme-preview",
     pluginId: "theme-preview",
     defaultEnabled: true,

@@ -21,6 +21,7 @@ import {
   type DragStartEvent,
   type MeasuringConfiguration,
   type Modifier,
+  type PointerActivationConstraint,
   type Sensor,
   type TouchSensorOptions,
 } from "@dnd-kit/core";
@@ -48,7 +49,7 @@ const REORDER_MODIFIERS: Modifier[] = [restrictDragToVerticalAxis];
  * can lose: crossing it starts a drag, and a drag swallows the click that the
  * browser fires on release.
  */
-const DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX = 4;
+const DEFAULT_MOUSE_ACTIVATION: PointerActivationConstraint = { distance: 4 };
 
 export interface UseReorderDndArgs {
   onDragEnd: (event: DragEndEvent) => void;
@@ -61,11 +62,14 @@ export interface UseReorderDndArgs {
   axis?: "vertical" | "free";
   measuring?: MeasuringConfiguration;
   /**
-   * Overrides {@link DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX}. Raise it on
-   * surfaces where a click is the primary action and dragging is occasional,
-   * so ordinary hand drift during a click does not read as a drag.
+   * Overrides {@link DEFAULT_MOUSE_ACTIVATION}. A distance budget lets a drag
+   * begin the moment the pointer travels far enough, at the cost of the click
+   * on any press that drifts that far. A `{ delay, tolerance }` constraint
+   * inverts that trade: no amount of drift can turn a quick press into a drag,
+   * so surfaces where clicking is the primary action keep their clicks and pay
+   * for it with a press-and-hold before a drag starts.
    */
-  mouseActivationDistance?: number;
+  mouseActivation?: PointerActivationConstraint;
 }
 
 export type ReorderDndContextProps = Pick<
@@ -97,7 +101,7 @@ export function useReorderDnd({
   touchSensor = TouchSensor,
   axis = "vertical",
   measuring,
-  mouseActivationDistance = DEFAULT_MOUSE_ACTIVATION_DISTANCE_PX,
+  mouseActivation = DEFAULT_MOUSE_ACTIVATION,
 }: UseReorderDndArgs): UseReorderDndResult {
   const {
     beginDragClickSuppression,
@@ -106,9 +110,7 @@ export function useReorderDnd({
   } = useDragClickSuppression();
   const isDraggingRef = useRef(false);
   const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: { distance: mouseActivationDistance },
-    }),
+    useSensor(MouseSensor, { activationConstraint: mouseActivation }),
     useSensor(touchSensor, {
       activationConstraint: { delay: 200, tolerance: 6 },
     }),

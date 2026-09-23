@@ -3,6 +3,7 @@ import {
   TouchSensor,
   type DragEndEvent,
   type DragStartEvent,
+  type PointerActivationConstraint,
 } from "@dnd-kit/core";
 import { COMPACT_VIEWPORT_QUERY } from "@bb/shared-ui/hooks/use-compact-viewport";
 import {
@@ -29,16 +30,26 @@ function setSidebarDraggingCursor(active: boolean): void {
 
 type UseSidebarReorderDndArgs = Omit<
   UseReorderDndArgs,
-  "touchSensor" | "mouseActivationDistance"
+  "touchSensor" | "mouseActivation"
 >;
 
 /**
  * Sidebar rows are clicked far more often than they are dragged, and the click
  * that switches threads usually happens with the hand already moving toward
- * the next row. The shared 4px budget classified that drift as a drag and ate
- * the click, so these rows get a wider one.
+ * the next row. Any distance budget prices that drift in lost clicks -- 4px was
+ * unusable and 8px still dropped them -- because crossing it starts a drag, and
+ * dnd-kit answers a drag by suppressing the click the browser fires on release.
+ *
+ * Time decides instead. A press that lets go inside the delay never activates,
+ * whatever it did with the pointer, so its click always lands; drifting past
+ * the tolerance cancels the press outright rather than promoting it. Dragging a
+ * row now costs a brief hold before the pointer moves, and the delay is long
+ * enough that a deliberate, slow click is still a click.
  */
-const SIDEBAR_MOUSE_ACTIVATION_DISTANCE_PX = 8;
+const SIDEBAR_MOUSE_ACTIVATION: PointerActivationConstraint = {
+  delay: 250,
+  tolerance: 8,
+};
 
 function shouldInstallSidebarTouchMoveListener(): boolean {
   return (
@@ -129,6 +140,6 @@ export function useSidebarReorderDnd({
     touchSensor: SidebarTouchSensor,
     axis,
     measuring,
-    mouseActivationDistance: SIDEBAR_MOUSE_ACTIVATION_DISTANCE_PX,
+    mouseActivation: SIDEBAR_MOUSE_ACTIVATION,
   });
 }

@@ -72,6 +72,7 @@ function createTestRenderableTab(
 
 function renderPanel(args: {
   isConversationCollapsed: boolean;
+  isOpen?: boolean;
   onToggleConversationCollapse: () => void;
   renderAsDrawer?: boolean;
 }) {
@@ -200,6 +201,40 @@ describe("ThreadSecondaryPanel compact file content", () => {
         .getByRole("toolbar", { name: "Right panel views" })
         .classList.contains("pt-14"),
     ).toBe(true);
+  });
+
+  it("reserves layout width for the collapsed rail instead of overlaying", () => {
+    const { container } = renderPanel({
+      isConversationCollapsed: false,
+      isOpen: false,
+      onToggleConversationCollapse: noop,
+    });
+
+    const reserved = container.querySelector("[data-collapsed-panel-rail]");
+    expect(reserved).not.toBeNull();
+    expect(reserved?.classList.contains("fixed")).toBe(false);
+    expect(reserved?.classList.contains("absolute")).toBe(false);
+    expect(reserved?.classList.contains("w-10")).toBe(true);
+    expect(reserved?.classList.contains("shrink-0")).toBe(true);
+    expect(
+      reserved?.contains(
+        screen.getByRole("toolbar", { name: "Right panel views" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("collapses the reserved rail away once the panel is open", () => {
+    const { container } = renderPanel({
+      isConversationCollapsed: false,
+      onToggleConversationCollapse: noop,
+    });
+
+    const reserved = container.querySelector("[data-collapsed-panel-rail]");
+    expect(reserved?.classList.contains("w-0")).toBe(true);
+    expect(reserved?.classList.contains("w-10")).toBe(false);
+    expect(
+      screen.getAllByRole("toolbar", { name: "Right panel views" }),
+    ).toHaveLength(1);
   });
 
   it("renders arbitrary fixed-tab content through the shared surface", () => {
