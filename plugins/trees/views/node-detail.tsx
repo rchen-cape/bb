@@ -8,9 +8,12 @@ import { cn } from "@bb/shared-ui/lib/utils";
 import {
   CONTEXT_MODES,
   CONTEXT_MODE_LABELS,
+  HANDOFF_LABELS,
+  HANDOFF_MODES,
   NODE_STATE_LABELS,
   upstreamNodeIds,
   type ContextMode,
+  type Handoff,
   type TreeNode,
   type WorkspaceTarget,
 } from "../src/model";
@@ -23,6 +26,7 @@ export interface NodeUpdatePatch {
   title?: string;
   instruction?: string;
   contextMode?: ContextMode;
+  handoff?: Handoff;
   customBrief?: string;
   workspace?: WorkspaceTarget;
   contextIncludes?: string[];
@@ -513,6 +517,12 @@ export function NodeDetail(props: NodeDetailProps) {
           <ThreadChat
             threadId={node.threadId}
             variant="compact"
+            /*
+             * The task owns this thread, so the chat owns its own execution
+             * controls rather than inheriting a pinned snapshot: the model and
+             * the permission mode are the user's to change from here.
+             */
+            permissionPolicy="editable"
             className="-mx-3 min-h-0 flex-1"
           />
         ) : node.kind === "agent" ? (
@@ -631,6 +641,31 @@ export function NodeDetail(props: NodeDetailProps) {
                 </Button>
               </div>
             ) : null}
+          </Field>
+
+          <Field label="What it passes downstream">
+            <select
+              aria-label="Handoff"
+              className={selectClass}
+              value={node.handoff}
+              onChange={(event) => {
+                const next = HANDOFF_MODES.find(
+                  (candidate) => candidate === event.target.value,
+                );
+                if (next !== undefined) props.onUpdate({ handoff: next });
+              }}
+            >
+              {HANDOFF_MODES.map((mode) => (
+                <option key={mode} value={mode}>
+                  {HANDOFF_LABELS[mode]}
+                </option>
+              ))}
+            </select>
+            <p className="text-2xs text-subtle-foreground">
+              {node.handoff === "full"
+                ? "Tasks depending on this one receive this document in full, however little context they asked for."
+                : "Tasks depending on this one receive its summary unless they ask for full parent output."}
+            </p>
           </Field>
 
           <Field label="Context it receives">
