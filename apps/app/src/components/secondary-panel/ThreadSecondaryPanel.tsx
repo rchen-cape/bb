@@ -982,24 +982,34 @@ function ThreadSecondaryPanelContent({
   );
 
   const collapsedRail =
-    !renderAsDrawer && !isOpen && hostLayout === null ? (
+    !renderAsDrawer && hostLayout === null ? (
       <div
-        className="fixed bottom-0 right-0 z-30 flex w-10 flex-col items-center gap-1 overflow-y-auto border-l border-border-seam bg-sidebar py-1"
-        style={{ top: "var(--bb-app-chrome-row-height)" }}
-        role="toolbar"
-        aria-label="Right panel views"
+        data-collapsed-panel-rail=""
+        className={cn(
+          "shrink-0 overflow-hidden",
+          `transition-[width] ${PANEL_COLLAPSE_TRANSITION_CLASS}`,
+          isOpen ? "w-0" : "w-10",
+        )}
       >
-        {renderPanelTabGroup({
-          activeSurfaceFixedTab: activeFixedTab,
-          activeSurfaceTabId:
-            activeRenderableTab?.tab.id ?? activeTab?.id ?? null,
-          surfaceTabs: tabs,
-          fixedSurfaceTabs: fixedTabs,
-          newTabAriaLabel: "Open new tab",
-          onSurfaceTabReorder: onTabReorder,
-          reserveNewTabButton: false,
-          showNewTabButton,
-        })}
+        {isOpen ? null : (
+          <div
+            className="flex h-full w-10 flex-col items-center gap-1 overflow-y-auto border-l border-border-seam bg-sidebar py-1"
+            role="toolbar"
+            aria-label="Right panel views"
+          >
+            {renderPanelTabGroup({
+              activeSurfaceFixedTab: activeFixedTab,
+              activeSurfaceTabId:
+                activeRenderableTab?.tab.id ?? activeTab?.id ?? null,
+              surfaceTabs: tabs,
+              fixedSurfaceTabs: fixedTabs,
+              newTabAriaLabel: "Open new tab",
+              onSurfaceTabReorder: onTabReorder,
+              reserveNewTabButton: false,
+              showNewTabButton,
+            })}
+          </div>
+        )}
       </div>
     ) : null;
 
