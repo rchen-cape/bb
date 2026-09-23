@@ -44,6 +44,9 @@ vi.mock("@/components/thread/ThreadActionsMenu", () => ({
 
 const EMPTY_MAP = new Map();
 
+/** Comfortably past the sidebar's press-and-hold delay. */
+const SIDEBAR_HOLD_MS = 400;
+
 const OPTIONS: ThreadRowOptions = {
   kind: "default",
   depth: 1,
@@ -337,8 +340,13 @@ describe("switching threads while rows are drag-enabled", () => {
     fireEvent.click(target, { clientX: 100 + drift, clientY: 100 });
   }
 
-  it.each([0, 1, 2, 3, 5, 7])(
-    "navigates when a click drifts %ipx, inside the drag budget",
+  /*
+   * A press that lets go before the hold elapses is a click, and nothing it did
+   * with the pointer may change that. The drift values here bracket the old
+   * distance budgets that used to promote such a press to a drag and lose it.
+   */
+  it.each([0, 3, 7, 9, 40, 200])(
+    "navigates when a click drifts %ipx before letting go",
     (drift) => {
       const view = renderDragSidebar();
       pressAndRelease(view.linkFor(BRAVO), drift);
@@ -346,14 +354,34 @@ describe("switching threads while rows are drag-enabled", () => {
     },
   );
 
-  it("treats travel past the budget as a drag and does not navigate", () => {
-    const view = renderDragSidebar();
-    const alphaRoute = getThreadRoutePath({
-      projectId: "proj_1",
-      threadId: ALPHA.id,
+  function holdThenDrag(target: HTMLElement, travel: number) {
+    fireEvent.mouseDown(target, { button: 0, clientX: 100, clientY: 100 });
+    act(() => {
+      vi.advanceTimersByTime(SIDEBAR_HOLD_MS);
     });
-    pressAndRelease(view.linkFor(BRAVO), 40);
-    expect(view.route()).toBe(alphaRoute);
+    fireEvent.mouseMove(document, { clientX: 100 + travel, clientY: 100 });
+    fireEvent.mouseUp(document, {
+      button: 0,
+      clientX: 100 + travel,
+      clientY: 100,
+    });
+  }
+
+  it("treats a press held past the hold as a drag and does not navigate", () => {
+    vi.useFakeTimers();
+    try {
+      const view = renderDragSidebar();
+      const alphaRoute = getThreadRoutePath({
+        projectId: "proj_1",
+        threadId: ALPHA.id,
+      });
+      const bravo = view.linkFor(BRAVO);
+      holdThenDrag(bravo, 60);
+      fireEvent.click(bravo, { clientX: 160, clientY: 100 });
+      expect(view.route()).toBe(alphaRoute);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   /*
@@ -368,13 +396,7 @@ describe("switching threads while rows are drag-enabled", () => {
     vi.useFakeTimers();
     try {
       const view = renderDragSidebar();
-      fireEvent.mouseDown(view.linkFor(ALPHA), {
-        button: 0,
-        clientX: 100,
-        clientY: 100,
-      });
-      fireEvent.mouseMove(document, { clientX: 160, clientY: 100 });
-      fireEvent.mouseUp(document, { button: 0, clientX: 160, clientY: 100 });
+      holdThenDrag(view.linkFor(ALPHA), 60);
 
       act(() => {
         vi.advanceTimersByTime(60);
