@@ -292,6 +292,7 @@ or an agent task that runs in its own thread. It adds the Trees panel and the
   bb tree context <task> [--json]
   bb tree artifact read|write <task> [--content <text>] [--content-file <path>]
                 [--machine <id-or-name>] [--json]
+  bb tree image add|list <task> [--file <path>] [--machine <id-or-name>] [--json]
   bb tree open <task> --base-branch <branch> [--message <text>] [--json]
   bb tree start|resend|handdown|complete|compact|working|ack <task> [--json]
   bb tree summary <task> --text <summary> [--json]
@@ -316,7 +317,10 @@ you set with `bb tree summary` and is never overwritten by completion, and
 `--handoff full` sends the whole file and skips compaction altogether.
 `bb tree handdown <task>` pushes the context to the immediate children instead
 of waiting for each to pull it: a child with a thread receives it as a message,
-and one without gets it in the first message when it starts. A completed task whose inputs
+and one without gets it in the first message when it starts. A note can carry
+images, stored in the tree's `assets/` folder and referenced from its Markdown;
+`--handoff full` is the only mode that sends them, as image parts of the
+receiving prompt. A completed task whose inputs
 later change becomes stale: `bb tree reopen` redoes it, `bb tree ack` keeps the
 output, and ack is refused while a parent is still stale. `bb tree working`
 marks a task in progress without spawning a thread, which is what the panel's
