@@ -280,14 +280,15 @@ or an agent task that runs in its own thread. It adds the Trees panel and the
 `bb tree` command:
 
   bb tree ready [--project <project>] [--json]
-  bb tree project list|create|show|rename|delete|attach|reveal [<project>]
-                [--name <name>] [--bb-project <proj-id>] [--json]
+  bb tree project list|create|show|rename|delete|reveal [<project>]
+                [--name <name>] [--json]
   bb tree node list|show|create|update|move|delete [<task>] [--project <project>]
                 [--title <title>] [--kind markdown|agent] [--instruction <text>]
                 [--context-mode auto_compact|full_parents|custom] [--brief <text>]
                 [--depends-on <task>] [--include <task>] [--x <px> --y <px>]
                 [--handoff summary|custom|full]
-                [--workspace scratch|<proj-id>|<env-id>|<absolute path>] [--json]
+                [--workspace scratch|<proj-id>|<env-id>|<absolute path>]
+                [--branch <name>] [--json]
   bb tree dep add|remove --parent <task> --child <task> [--json]
   bb tree context <task> [--json]
   bb tree artifact read|write <task> [--content <text>] [--content-file <path>]
@@ -302,10 +303,12 @@ or an agent task that runs in its own thread. It adds the Trees panel and the
 Projects resolve by id or exact name; tasks resolve by id, Markdown file name,
 or exact title, and `--project` narrows the lookup. Each task owns one Markdown
 file under the tree's folder, set by `bb plugin config trees set rootDirectory`.
-An agent task runs in a bb-managed scratch workspace unless it names a bb
-project, which runs it through that project's environment and gives the task its
-own worktree; naming an environment id instead runs the task in that exact
-environment, shared with every other task pointed at it. An absolute path
+A tree belongs to no bb project: each agent task names the project it works in
+with `--workspace` and the branch its worktree is cut from with `--branch`, so
+tasks in one tree can change different repositories. An agent task runs in a
+bb-managed scratch workspace until it names a project, which gives it its own
+worktree off that branch; naming an environment id instead runs the task in that
+exact environment, shared with every other task pointed at it. An absolute path
 resolves to the project that owns it.
 Nothing runs on its own: completing a task makes its children ready, and
 `bb tree context <task>` prints the exact prompt before `bb tree start` sends
