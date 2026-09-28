@@ -319,8 +319,9 @@ you set with `bb tree summary` and is never overwritten by completion, and
 of waiting for each to pull it: a child with a thread receives it as a message,
 and one without gets it in the first message when it starts. A note can carry
 images, stored in the tree's `assets/` folder and referenced from its Markdown;
-`--handoff full` is the only mode that sends them, as image parts of the
-receiving prompt. A completed task whose inputs
+`--handoff full` is the only mode that sends them: each is uploaded as an
+attachment of the receiving thread's project and the document marks where it
+sat, on start, resend, and handdown alike. A completed task whose inputs
 later change becomes stale: `bb tree reopen` redoes it, `bb tree ack` keeps the
 output, and ack is refused while a parent is still stale. `bb tree working`
 marks a task in progress without spawning a thread, which is what the panel's
