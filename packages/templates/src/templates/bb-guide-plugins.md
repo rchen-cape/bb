@@ -284,7 +284,7 @@ or an agent task that runs in its own thread. It adds the Trees panel and the
                 [--name <name>] [--json]
   bb tree node list|show|create|update|move|delete [<task>] [--project <project>]
                 [--title <title>] [--kind markdown|agent] [--instruction <text>]
-                [--context-mode auto_compact|full_parents|custom] [--brief <text>]
+                [--context-mode all_parents|custom] [--brief <text>]
                 [--depends-on <task>] [--include <task>] [--x <px> --y <px>]
                 [--handoff summary|custom|full]
                 [--workspace scratch|<proj-id>|<env-id>|<absolute path>]
