@@ -206,6 +206,7 @@ export function Overview() {
             }}
             pullRequestSection={null}
             expandedSection={null}
+            workspaceOpenSection={null}
             onToggleSection={() => {}}
           />
         </PromptStage>

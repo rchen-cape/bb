@@ -165,6 +165,7 @@ import {
   isThreadDisplayStatusBannerActive,
   type ThreadPromptParentThreadSection,
   type ThreadPromptChildThreadsSection,
+  type ThreadPromptWorkspaceOpenSection,
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
 import { ThreadDetailSecondaryContent } from "./ThreadDetailSecondaryContent";
 import {
@@ -2464,6 +2465,18 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     ...responsiveWorkspaceActions,
     ...responsiveGitActions,
   ];
+  const promptWorkspaceOpenSection: ThreadPromptWorkspaceOpenSection | null =
+    workspaceOpenPath && preferredDirectoryTarget
+      ? {
+          target: preferredDirectoryTarget,
+          onOpen: async () => {
+            await openPathInPreferredDirectoryTarget({
+              lineNumber: null,
+              path: workspaceOpenPath,
+            });
+          },
+        }
+      : null;
   const workspaceOpenButton =
     workspaceOpenPath && preferredDirectoryTarget ? (
       <ThreadWorkspaceOpenButton
@@ -2541,6 +2554,7 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       workspaceChangedFilesSection={
         canUseGitUi ? workspaceChangedFilesSection : null
       }
+      workspaceOpenSection={promptWorkspaceOpenSection}
       workspaceStatusPending={
         canUseGitUi && (environmentQuery.isLoading || workStatusQuery.isLoading)
       }

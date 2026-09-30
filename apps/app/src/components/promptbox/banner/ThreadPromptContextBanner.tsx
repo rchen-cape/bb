@@ -1,4 +1,10 @@
-import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useState,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { NavLink } from "react-router-dom";
 import type {
   EnvironmentStatus,
@@ -6,6 +12,7 @@ import type {
   ThreadPullRequest,
   ThreadRuntimeDisplayStatus,
 } from "@bb/domain";
+import type { WorkspaceOpenTarget } from "@bb/host-daemon-contract";
 import type { PullRequestMergeMethod } from "@bb/server-contract";
 import {
   BranchPicker,
@@ -54,6 +61,8 @@ import {
   DropdownMenuTrigger,
 } from "@bb/shared-ui/dropdown-menu";
 import { useUrlAnchorClickHandler } from "@/lib/url-open-routing";
+import { WorkspaceOpenTargetIcon } from "@/components/workspace-open-target/WorkspaceOpenTargetIcon";
+import { useAppCommandShortcut } from "@/components/commands/AppCommandProvider";
 
 export interface ContextBannerMergeBaseConfig {
   branch: string;
@@ -100,6 +109,11 @@ export interface ThreadPromptPullRequestSection {
   };
 }
 
+export interface ThreadPromptWorkspaceOpenSection {
+  target: WorkspaceOpenTarget;
+  onOpen: () => Promise<void>;
+}
+
 export interface ThreadPromptArchivedSection {
   archivedAt: number;
   onUnarchive?: () => void;
@@ -138,6 +152,7 @@ interface ThreadPromptContextBannerProps {
   parentThreadSection: ThreadPromptParentThreadSection | null;
   childThreadsSection: ThreadPromptChildThreadsSection | null;
   pullRequestSection: ThreadPromptPullRequestSection | null;
+  workspaceOpenSection: ThreadPromptWorkspaceOpenSection | null;
   expandedSection: ThreadPromptContextBannerExpandedSection | null;
   onToggleSection: (section: ThreadPromptContextBannerExpandedSection) => void;
 }
@@ -572,6 +587,54 @@ function PullRequestBannerLink({
   );
 }
 
+function WorkspaceOpenBannerButton({
+  section,
+}: {
+  section: ThreadPromptWorkspaceOpenSection;
+}) {
+  const [isPending, setIsPending] = useState(false);
+  const shortcut = useAppCommandShortcut("workspace.openPreferred");
+  const openLabel = `Open workspace in ${section.target.label}`;
+  const handleClick = useCallback(() => {
+    if (isPending) {
+      return;
+    }
+    setIsPending(true);
+    void section
+      .onOpen()
+      .catch(() => undefined)
+      .finally(() => {
+        setIsPending(false);
+      });
+  }, [isPending, section]);
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={isPending}
+      aria-label={openLabel}
+      aria-keyshortcuts={shortcut?.ariaKeyshortcuts}
+      className={cn(
+        "flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:bg-state-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed",
+        PROMPT_STACK_INLAY_SEGMENT_CLASS,
+        SEGMENT_SHRINK_CLASS,
+      )}
+    >
+      <WorkspaceOpenTargetIcon
+        target={section.target}
+        className={cn("size-3.5", isPending && "animate-shine-icon")}
+      />
+      <span
+        className="min-w-0 truncate"
+        data-promptbox-hide-compact=""
+        title={shortcut ? `${openLabel} (${shortcut.label})` : openLabel}
+      >
+        Code
+      </span>
+    </button>
+  );
+}
+
 function childThreadsLabel(args: {
   count: number;
   pendingCount: number;
@@ -755,6 +818,7 @@ export function ThreadPromptContextBanner({
   parentThreadSection,
   childThreadsSection,
   pullRequestSection,
+  workspaceOpenSection,
   expandedSection,
   onToggleSection,
 }: ThreadPromptContextBannerProps) {
@@ -794,7 +858,14 @@ export function ThreadPromptContextBanner({
   const showChildThreads =
     childThreadsSection !== null && childThreadsSection.items.length > 0;
   const showPullRequest = pullRequestSection !== null;
-  if (!showGit && !showParentThread && !showChildThreads && !showPullRequest) {
+  const showWorkspaceOpen = workspaceOpenSection !== null;
+  if (
+    !showGit &&
+    !showParentThread &&
+    !showChildThreads &&
+    !showPullRequest &&
+    !showWorkspaceOpen
+  ) {
     return null;
   }
   const visibleSegmentCount =
@@ -896,7 +967,7 @@ export function ThreadPromptContextBanner({
     ) : null;
 
   const compactContextBanner =
-    visibleSegmentCount > 0 ? (
+    visibleSegmentCount > 0 || showWorkspaceOpen ? (
       <PromptStackCard
         ariaLabel="Thread context before sending"
         className="overflow-hidden"
@@ -946,6 +1017,9 @@ export function ThreadPromptContextBanner({
               showLabel={showPullRequestLabel}
               showStateLabel={hasSingleVisibleSegment}
             />
+          ) : null}
+          {workspaceOpenSection ? (
+            <WorkspaceOpenBannerButton section={workspaceOpenSection} />
           ) : null}
           {showGit && gitSummary ? (
             <SectionToggleButton

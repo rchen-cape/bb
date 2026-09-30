@@ -397,6 +397,7 @@ function buildPromptArea({
         steerActiveThreadOnEnter={false}
         thread={thread}
         workspaceChangedFilesSection={null}
+        workspaceOpenSection={null}
         workspaceStatusPending={false}
       />
     </PluginComposerHostScopeProvider>

@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import type { ThreadPullRequest } from "@bb/domain";
+import type { WorkspaceOpenTarget } from "@bb/host-daemon-contract";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   isThreadDisplayStatusBannerActive,
@@ -47,6 +54,18 @@ const pullRequestFixture: ThreadPullRequest = {
   attention: "ready_to_merge",
 };
 
+const workspaceOpenTargetFixture: WorkspaceOpenTarget = {
+  id: "vscode",
+  label: "VS Code",
+  kind: "editor",
+  icon: { kind: "builtin", name: "vscode" },
+  capabilities: {
+    openDirectory: true,
+    openFile: true,
+    openFileAtLine: true,
+  },
+};
+
 function makeGitSection(
   kind: ThreadPromptGitSection["changedFiles"]["kind"] = "uncommitted",
   mergeBase: ThreadPromptGitSection["mergeBase"] = null,
@@ -83,6 +102,7 @@ describe("ThreadPromptContextBanner", () => {
         childThreadsSection={null}
         pullRequestSection={null}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -103,6 +123,7 @@ describe("ThreadPromptContextBanner", () => {
         childThreadsSection={null}
         pullRequestSection={null}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -146,6 +167,7 @@ describe("ThreadPromptContextBanner", () => {
             childThreadsSection={null}
             pullRequestSection={null}
             expandedSection={null}
+            workspaceOpenSection={null}
             onToggleSection={noop}
           />
         </MemoryRouter>,
@@ -177,6 +199,7 @@ describe("ThreadPromptContextBanner", () => {
           childThreadsSection={null}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -185,6 +208,84 @@ describe("ThreadPromptContextBanner", () => {
     expect(markup).toContain("Environment archived");
     expect(markup).not.toContain("Thread is archived");
     expect(markup).not.toContain(">Unarchive<");
+  });
+
+  it("opens the workspace in the preferred target from the code button", async () => {
+    let openCount = 0;
+    render(
+      <ThreadPromptContextBanner
+        gitSection={null}
+        gitSectionPending={false}
+        archivedSection={null}
+        environmentGoneSection={null}
+        parentThreadSection={null}
+        childThreadsSection={null}
+        pullRequestSection={{ pullRequest: pullRequestFixture }}
+        expandedSection={null}
+        workspaceOpenSection={{
+          target: workspaceOpenTargetFixture,
+          onOpen: async () => {
+            openCount += 1;
+          },
+        }}
+        onToggleSection={noop}
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Open workspace in VS Code",
+    });
+    expect(button.textContent).toBe("Code");
+    fireEvent.click(button);
+    await waitFor(() => {
+      expect(openCount).toBe(1);
+    });
+  });
+
+  it("shows the code button when the workspace open target is the only section", () => {
+    render(
+      <ThreadPromptContextBanner
+        gitSection={null}
+        gitSectionPending={false}
+        archivedSection={null}
+        environmentGoneSection={null}
+        parentThreadSection={null}
+        childThreadsSection={null}
+        pullRequestSection={null}
+        expandedSection={null}
+        workspaceOpenSection={{
+          target: workspaceOpenTargetFixture,
+          onOpen: async () => {},
+        }}
+        onToggleSection={noop}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Open workspace in VS Code" }),
+    ).toBeTruthy();
+  });
+
+  it("hides the code button while the thread is archived", () => {
+    const markup = renderToStaticMarkup(
+      <ThreadPromptContextBanner
+        gitSection={null}
+        gitSectionPending={false}
+        archivedSection={{ archivedAt: 1_731_456_000_000 }}
+        environmentGoneSection={null}
+        parentThreadSection={null}
+        childThreadsSection={null}
+        pullRequestSection={null}
+        expandedSection={null}
+        workspaceOpenSection={{
+          target: workspaceOpenTargetFixture,
+          onOpen: async () => {},
+        }}
+        onToggleSection={noop}
+      />,
+    );
+
+    expect(markup).not.toContain(">Code<");
   });
 
   it("labels a standalone pull request without non-actionable attention text", () => {
@@ -198,6 +299,7 @@ describe("ThreadPromptContextBanner", () => {
         childThreadsSection={null}
         pullRequestSection={{ pullRequest: pullRequestFixture }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -225,6 +327,7 @@ describe("ThreadPromptContextBanner", () => {
           },
         }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -255,6 +358,7 @@ describe("ThreadPromptContextBanner", () => {
           },
         }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -282,6 +386,7 @@ describe("ThreadPromptContextBanner", () => {
           },
         }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -310,6 +415,7 @@ describe("ThreadPromptContextBanner", () => {
           }}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -353,6 +459,7 @@ describe("ThreadPromptContextBanner", () => {
           }}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -385,6 +492,7 @@ describe("ThreadPromptContextBanner", () => {
           }}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -422,6 +530,7 @@ describe("ThreadPromptContextBanner", () => {
           }}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -453,6 +562,7 @@ describe("ThreadPromptContextBanner", () => {
           }}
           pullRequestSection={null}
           expandedSection={null}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>,
@@ -491,6 +601,7 @@ describe("ThreadPromptContextBanner", () => {
           },
         }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -511,6 +622,7 @@ describe("ThreadPromptContextBanner", () => {
         childThreadsSection={null}
         pullRequestSection={{ pullRequest: pullRequestFixture }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -539,6 +651,7 @@ describe("ThreadPromptContextBanner", () => {
           },
         }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -559,6 +672,7 @@ describe("ThreadPromptContextBanner", () => {
         childThreadsSection={null}
         pullRequestSection={{ pullRequest: pullRequestFixture }}
         expandedSection={null}
+        workspaceOpenSection={null}
         onToggleSection={noop}
       />,
     );
@@ -606,6 +720,7 @@ describe("ThreadPromptContextBanner", () => {
             childThreadsSection={null}
             pullRequestSection={{ pullRequest }}
             expandedSection={null}
+            workspaceOpenSection={null}
             onToggleSection={noop}
           />
         </MemoryRouter>,
@@ -636,6 +751,7 @@ describe("ThreadPromptContextBanner git section body", () => {
           childThreadsSection={null}
           pullRequestSection={null}
           expandedSection={expandedSection}
+          workspaceOpenSection={null}
           onToggleSection={noop}
         />
       </MemoryRouter>

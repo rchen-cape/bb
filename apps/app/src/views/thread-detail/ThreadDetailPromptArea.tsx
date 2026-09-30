@@ -51,6 +51,7 @@ import {
   type ThreadPromptParentThreadSection,
   type ThreadPromptChildThreadsSection,
   type ThreadPromptPullRequestSection,
+  type ThreadPromptWorkspaceOpenSection,
 } from "@/components/promptbox/banner/ThreadPromptContextBanner";
 import { ThreadGoalCard } from "@/components/promptbox/banner/ThreadGoalCard";
 import { ThreadTodoCard } from "@/components/promptbox/banner/ThreadTodoCard";
@@ -203,6 +204,7 @@ interface ThreadDetailPromptAreaProps {
   childPendingInteractions: readonly ChildThreadPendingAttention[];
   childThreadsSection: ThreadPromptChildThreadsSection | null;
   pullRequest: ThreadPullRequest | null;
+  workspaceOpenSection: ThreadPromptWorkspaceOpenSection | null;
   sendMessage: SendMessageMutationLike;
   sentMessageEdit?: ThreadDetailSentMessageEdit;
   steerActiveThreadOnEnter: boolean;
@@ -398,6 +400,7 @@ export function ThreadDetailPromptArea({
   childPendingInteractions,
   childThreadsSection,
   pullRequest,
+  workspaceOpenSection,
   sendMessage,
   sentMessageEdit,
   steerActiveThreadOnEnter,
@@ -1931,6 +1934,7 @@ export function ThreadDetailPromptArea({
           parentThreadSection={parentThreadSection}
           childThreadsSection={childThreadsSection}
           pullRequestSection={pullRequestSection}
+          workspaceOpenSection={workspaceOpenSection}
           gitSection={
             workspaceChangedFilesSection
               ? {
@@ -2024,6 +2028,7 @@ export function ThreadDetailPromptArea({
       thread.archivedAt,
       thread.id,
       workspaceChangedFilesSection,
+      workspaceOpenSection,
       workspaceStatusPending,
     ],
   );

@@ -447,6 +447,7 @@ const contextBannerElement: ReactNode = dirtyContextBannerSection ? (
     childThreadsSection={null}
     pullRequestSection={null}
     expandedSection={null}
+    workspaceOpenSection={null}
     onToggleSection={noop}
   />
 ) : null;
@@ -461,6 +462,7 @@ const archivedContextBannerElement: ReactNode = (
     childThreadsSection={null}
     pullRequestSection={null}
     expandedSection={null}
+    workspaceOpenSection={null}
     onToggleSection={noop}
   />
 );
@@ -475,6 +477,7 @@ const environmentGoneContextBannerElement: ReactNode = (
     childThreadsSection={null}
     pullRequestSection={null}
     expandedSection={null}
+    workspaceOpenSection={null}
     onToggleSection={noop}
   />
 );

@@ -4,6 +4,7 @@ import type {
   WorkspaceFileStatus,
   WorkspaceStatus,
 } from "@bb/domain";
+import type { WorkspaceOpenTarget } from "@bb/host-daemon-contract";
 import type { PullRequestMergeMethod } from "@bb/server-contract";
 import {
   ThreadPromptContextBanner,
@@ -624,6 +625,7 @@ interface RowConfig {
   pullRequest?: ThreadPullRequest | null;
   pullRequestActions?: boolean;
   pullRequestMergeMethod?: PullRequestMergeMethod;
+  workspaceOpen?: boolean;
   initiallyExpandedSection?: ThreadPromptContextBannerExpandedSection | null;
 }
 
@@ -637,6 +639,7 @@ function ContextBannerPreview({
   pullRequest = null,
   pullRequestActions = false,
   pullRequestMergeMethod = "merge",
+  workspaceOpen = false,
   initiallyExpandedSection = null,
   size,
 }: RowConfig & { size: PromptStageSize }) {
@@ -678,6 +681,11 @@ function ContextBannerPreview({
             : null
         }
         expandedSection={expandedSection}
+        workspaceOpenSection={
+          workspaceOpen
+            ? { target: workspaceOpenTargetFixture, onOpen: async () => {} }
+            : null
+        }
         onToggleSection={(next) =>
           setExpandedSection((previous) => (previous === next ? null : next))
         }
@@ -694,6 +702,18 @@ function Row(props: RowConfig) {
     </div>
   );
 }
+
+const workspaceOpenTargetFixture: WorkspaceOpenTarget = {
+  id: "vscode",
+  label: "VS Code",
+  kind: "editor",
+  icon: { kind: "builtin", name: "vscode" },
+  capabilities: {
+    openDirectory: true,
+    openFile: true,
+    openFileAtLine: true,
+  },
+};
 
 const archivedFixture: ThreadPromptArchivedSection = {
   archivedAt: 1_731_456_000_000,
@@ -851,6 +871,22 @@ export function Overview() {
         hint="PR number and the shared uncommitted diff label stay visible"
       >
         <Row pullRequest={pullRequestFixture} section={uncommittedSection} />
+      </StoryRow>
+      <StoryRow
+        label="pull request + code + uncommitted"
+        hint="the Code button sits next to the pull request line and opens the workspace in the preferred editor; its label drops at the compact breakpoint"
+      >
+        <Row
+          pullRequest={pullRequestFixture}
+          section={uncommittedSection}
+          workspaceOpen
+        />
+      </StoryRow>
+      <StoryRow
+        label="code only"
+        hint="the Code button alone still renders the banner so the workspace stays one click away"
+      >
+        <Row workspaceOpen mergeBase={null} />
       </StoryRow>
       <StoryRow
         label="pull request + committed"

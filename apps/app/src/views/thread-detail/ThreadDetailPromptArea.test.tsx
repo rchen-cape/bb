@@ -890,6 +890,7 @@ function buildPromptAreaElement({
         steerActiveThreadOnEnter={false}
         thread={thread}
         workspaceChangedFilesSection={null}
+        workspaceOpenSection={null}
         workspaceStatusPending={false}
       />
     </QueryClientProvider>
