@@ -6,12 +6,14 @@ import type {
 } from "@bb/host-daemon-contract";
 import { appToast } from "@/components/ui/app-toast";
 import {
+  resolvePreferredTerminalOpenTarget,
   resolvePreferredWorkspaceOpenFileTarget,
   resolvePreferredWorkspaceOpenTarget,
   supportsWorkspaceOpenTargetCapability,
   type StoredWorkspaceOpenTargetPreference,
   type WorkspaceOpenTargetContextKind,
   useFileOpenTargetPreference,
+  useTerminalOpenTargetPreference,
   useWorkspaceOpenTargetPreference,
 } from "@/lib/workspace-open-target-preference";
 import { useHostDaemon } from "./useHostDaemon";
@@ -67,8 +69,12 @@ interface UseLocalOpenTargetsResult {
   openPathInPreferredFileTarget: (
     args: OpenLocalPathRequest,
   ) => Promise<boolean>;
+  openPathInPreferredTerminalTarget: (
+    args: OpenLocalPathRequest,
+  ) => Promise<boolean>;
   preferredDirectoryTarget: WorkspaceOpenTarget | null;
   preferredFileTarget: WorkspaceOpenTarget | null;
+  preferredTerminalTarget: WorkspaceOpenTarget | null;
 }
 
 type OpenUnavailableTargetKind = "file-open-target" | "directory-open-target";
@@ -98,6 +104,7 @@ interface UseOpenTargetResolutionArgs {
   contextKind: WorkspaceOpenTargetContextKind;
   preferredDirectoryTargetId: StoredWorkspaceOpenTargetPreference;
   preferredFileTargetId: StoredWorkspaceOpenTargetPreference;
+  preferredTerminalTargetId: StoredWorkspaceOpenTargetPreference;
   workspaceOpenTargets: WorkspaceOpenTarget[];
 }
 
@@ -106,6 +113,7 @@ interface OpenTargetResolution {
   fileOpenTargets: WorkspaceOpenTarget[];
   preferredDirectoryTarget: WorkspaceOpenTarget | null;
   preferredFileTarget: WorkspaceOpenTarget | null;
+  preferredTerminalTarget: WorkspaceOpenTarget | null;
 }
 
 function getOpenUnavailableDescription(
@@ -196,11 +204,22 @@ function useOpenTargetResolution(
     [args.contextKind, args.preferredFileTargetId, fileOpenTargets],
   );
 
+  const preferredTerminalTarget = useMemo(
+    () =>
+      resolvePreferredTerminalOpenTarget({
+        contextKind: args.contextKind,
+        preferredTargetId: args.preferredTerminalTargetId,
+        targets: directoryOpenTargets,
+      }),
+    [args.contextKind, args.preferredTerminalTargetId, directoryOpenTargets],
+  );
+
   return {
     directoryOpenTargets,
     fileOpenTargets,
     preferredDirectoryTarget,
     preferredFileTarget,
+    preferredTerminalTarget,
   };
 }
 
@@ -239,15 +258,18 @@ export function useLocalOpenTargets(
     useWorkspaceOpenTargetPreference(workspaceOpenTargets);
   const [preferredFileTargetId, setPreferredFileTargetId] =
     useFileOpenTargetPreference(workspaceOpenTargets);
+  const [preferredTerminalTargetId] = useTerminalOpenTargetPreference();
   const {
     directoryOpenTargets,
     fileOpenTargets,
     preferredDirectoryTarget,
     preferredFileTarget,
+    preferredTerminalTarget,
   } = useOpenTargetResolution({
     contextKind,
     preferredDirectoryTargetId,
     preferredFileTargetId,
+    preferredTerminalTargetId,
     workspaceOpenTargets,
   });
   const rememberPreferredOpenTarget = useCallback(
@@ -396,6 +418,29 @@ export function useLocalOpenTargets(
     },
     [hasDaemon, openPathInAvailableTarget, preferredDirectoryTarget],
   );
+  const openPathInPreferredTerminalTarget = useCallback(
+    async (request: OpenLocalPathRequest) => {
+      if (!preferredTerminalTarget) {
+        dispatchOpenFailureToast({
+          description: getOpenUnavailableDescription({
+            hasDaemon,
+            targetKind: "directory-open-target",
+          }),
+        });
+        return false;
+      }
+
+      return openPathInAvailableTarget({
+        columnNumber: request.columnNumber ?? null,
+        lineNumber: request.lineNumber,
+        path: request.path,
+        rememberTarget: false,
+        target: preferredTerminalTarget,
+        targetKind: "directory-open-target",
+      });
+    },
+    [hasDaemon, openPathInAvailableTarget, preferredTerminalTarget],
+  );
   const openPathInPreferredFileTarget = useCallback(
     async (request: OpenLocalPathRequest) => {
       const fileTargets =
@@ -451,7 +496,9 @@ export function useLocalOpenTargets(
     openPathInFileTarget,
     openPathInPreferredDirectoryTarget,
     openPathInPreferredFileTarget,
+    openPathInPreferredTerminalTarget,
     preferredDirectoryTarget,
     preferredFileTarget,
+    preferredTerminalTarget,
   };
 }

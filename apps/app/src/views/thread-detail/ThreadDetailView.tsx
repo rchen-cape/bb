@@ -1613,44 +1613,6 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     }
     return desktopInfo.onOpenNewTab(handleOpenNewTab);
   }, [handleOpenNewTab, isFocused]);
-  const handleStartTerminal = useCallback(() => {
-    if (!canCreateTerminal || createTerminal.isPending || !threadId) {
-      return;
-    }
-    const newTab = createNewTabFixedPanelTab();
-    void createTerminal
-      .mutateAsync({
-        threadId,
-        cols: DEFAULT_TERMINAL_COLS,
-        rows: DEFAULT_TERMINAL_ROWS,
-      })
-      .then((session) => {
-        closeTab(newTab.id);
-        setShouldAutoFocusTerminal(true);
-        setActiveFixedTerminal(session.id);
-        openCompactDrawer();
-      })
-      .catch(() => undefined);
-  }, [
-    canCreateTerminal,
-    closeTab,
-    createTerminal,
-    openCompactDrawer,
-    setActiveFixedTerminal,
-    threadId,
-  ]);
-  useAppCommandHandler("terminal.open", () => {
-    if (
-      !isFocused ||
-      !canCreateTerminal ||
-      createTerminal.isPending ||
-      !threadId
-    ) {
-      return false;
-    }
-    handleStartTerminal();
-    return true;
-  });
   const handleActivateTerminalTab = useCallback(
     (terminalId: string) => {
       setShouldAutoFocusTerminal(true);
@@ -1908,7 +1870,9 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     openPathInFileTarget,
     openPathInPreferredDirectoryTarget,
     openPathInPreferredFileTarget,
+    openPathInPreferredTerminalTarget,
     preferredDirectoryTarget,
+    preferredTerminalTarget,
   } = useLocalOpenTargets({
     enabled: threadOpenContext !== null,
     ...(threadOpenContext ? { openContext: threadOpenContext } : {}),
@@ -2229,6 +2193,56 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
     environment,
     hasWorkspaceOpenTargets: directoryOpenTargets.length > 0,
   });
+  const startsExternalTerminal =
+    preferredTerminalTarget !== null && workspaceOpenPath !== null;
+  const canStartTerminal = startsExternalTerminal || canCreateTerminal;
+  const handleStartTerminal = useCallback(() => {
+    if (startsExternalTerminal && workspaceOpenPath) {
+      void openPathInPreferredTerminalTarget({
+        lineNumber: null,
+        path: workspaceOpenPath,
+      });
+      return;
+    }
+    if (!canCreateTerminal || createTerminal.isPending || !threadId) {
+      return;
+    }
+    const newTab = createNewTabFixedPanelTab();
+    void createTerminal
+      .mutateAsync({
+        threadId,
+        cols: DEFAULT_TERMINAL_COLS,
+        rows: DEFAULT_TERMINAL_ROWS,
+      })
+      .then((session) => {
+        closeTab(newTab.id);
+        setShouldAutoFocusTerminal(true);
+        setActiveFixedTerminal(session.id);
+        openCompactDrawer();
+      })
+      .catch(() => undefined);
+  }, [
+    canCreateTerminal,
+    closeTab,
+    createTerminal,
+    openCompactDrawer,
+    openPathInPreferredTerminalTarget,
+    setActiveFixedTerminal,
+    startsExternalTerminal,
+    threadId,
+    workspaceOpenPath,
+  ]);
+  useAppCommandHandler("terminal.open", () => {
+    if (
+      !isFocused ||
+      !canStartTerminal ||
+      (startsExternalTerminal === false && createTerminal.isPending)
+    ) {
+      return false;
+    }
+    handleStartTerminal();
+    return true;
+  });
   usePublishThreadPanelOpener(handleOpenTimelinePluginPanel, isFocused);
   useAppCommandHandler("workspace.openPreferred", () => {
     if (!isFocused) return false;
@@ -2534,12 +2548,18 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
       canUseGitUi={canUseGitUi}
       contextWindowUsage={contextWindowUsage}
       environmentCheckout={threadCheckoutDisplay}
-      environmentCompactLabel={composerEnvironmentChrome?.environmentCompactLabel}
+      environmentCompactLabel={
+        composerEnvironmentChrome?.environmentCompactLabel
+      }
       environmentHost={composerEnvironmentChrome?.environmentHost}
       environmentIcon={composerEnvironmentChrome?.environmentIcon}
       environmentLabel={composerEnvironmentChrome?.environmentLabel}
-      environmentMachineProvider={composerEnvironmentChrome?.environmentMachineProvider}
-      environmentProviderName={composerEnvironmentChrome?.environmentProviderName}
+      environmentMachineProvider={
+        composerEnvironmentChrome?.environmentMachineProvider
+      }
+      environmentProviderName={
+        composerEnvironmentChrome?.environmentProviderName
+      }
       environmentGoneStatus={threadEnvironmentGoneStatus}
       environmentHostId={environment?.hostId}
       isEnvironmentActionPending={requestEnvironmentAction.isPending}
@@ -2634,11 +2654,16 @@ function ThreadDetailViewInternal(props: ThreadRoutePathArgs) {
               openBrowserTabAndReveal();
             }}
             onStartTerminal={
-              canCreateTerminal
+              canStartTerminal
                 ? () => {
                     activateTab(tab.id);
                     handleStartTerminal();
                   }
+                : undefined
+            }
+            startTerminalLabel={
+              preferredTerminalTarget
+                ? `Start terminal in ${preferredTerminalTarget.label}`
                 : undefined
             }
             pluginActions={pluginPanelActions}

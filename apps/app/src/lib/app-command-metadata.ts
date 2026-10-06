@@ -172,7 +172,7 @@ export const APP_COMMAND_GROUPS: readonly AppCommandGroup[] = [
       command(
         "terminal.open",
         "Open terminal",
-        "Open a terminal in the secondary panel.",
+        "Open a terminal in the secondary panel, or in the terminal app chosen in Settings.",
       ),
       command(
         "workspace.openPreferred",

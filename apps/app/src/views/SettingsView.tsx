@@ -94,9 +94,12 @@ import {
 import { useNavigateToThreadAfterCreatePreference } from "@/lib/root-compose-create-preference";
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
+  isTerminalWorkspaceOpenTarget,
+  resolvePreferredTerminalOpenTarget,
   resolvePreferredWorkspaceOpenTarget,
   supportsWorkspaceOpenTargetCapability,
   useFileOpenTargetPreference,
+  useTerminalOpenTargetPreference,
   useWorkspaceOpenTargetPreference,
   type StoredWorkspaceOpenTargetPreference,
   type WorkspaceOpenTargetCapability,
@@ -131,6 +134,12 @@ interface LocalOpenTargetPreferenceControlProps {
   targets: WorkspaceOpenTarget[];
 }
 
+interface TerminalOpenTargetPreferenceControlProps {
+  onTargetChange: (targetId: StoredWorkspaceOpenTargetPreference) => void;
+  preferredTargetId: StoredWorkspaceOpenTargetPreference;
+  targets: WorkspaceOpenTarget[];
+}
+
 export interface LocalOpenTargetSettingsSectionProps {
   accessState: LocalHostDaemonAccessState;
   directoryTargetId: StoredWorkspaceOpenTargetPreference;
@@ -139,7 +148,11 @@ export interface LocalOpenTargetSettingsSectionProps {
   onDirectoryTargetChange: (targetId: WorkspaceOpenTargetId) => void;
   onFileTargetChange: (targetId: WorkspaceOpenTargetId) => void;
   onRequestAccess: () => Promise<boolean>;
+  onTerminalTargetChange: (
+    targetId: StoredWorkspaceOpenTargetPreference,
+  ) => void;
   targets: WorkspaceOpenTarget[];
+  terminalTargetId: StoredWorkspaceOpenTargetPreference;
 }
 
 interface FaviconColorSettingsControlProps {
@@ -470,6 +483,109 @@ function LocalOpenTargetPreferenceControl({
   );
 }
 
+const TERMINAL_TARGET_PREFERENCE_LABEL = "Terminal default";
+const TERMINAL_TARGET_PREFERENCE_DESCRIPTION =
+  "Where Start terminal and the terminal shortcut open a shell for a thread’s workspace.";
+const BUILT_IN_TERMINAL_TARGET_LABEL = "bb terminal";
+
+function TerminalOpenTargetPreferenceControl({
+  onTargetChange,
+  preferredTargetId,
+  targets,
+}: TerminalOpenTargetPreferenceControlProps) {
+  const terminalTargets = useMemo(
+    () =>
+      targets.filter(
+        (target) =>
+          isTerminalWorkspaceOpenTarget(target) &&
+          supportsWorkspaceOpenTargetCapability({
+            capability: "openDirectory",
+            target,
+          }),
+      ),
+    [targets],
+  );
+  const resolvedTarget = useMemo(
+    () =>
+      resolvePreferredTerminalOpenTarget({
+        preferredTargetId,
+        targets,
+      }),
+    [preferredTargetId, targets],
+  );
+  const buttonLabel = resolvedTarget?.label ?? BUILT_IN_TERMINAL_TARGET_LABEL;
+
+  return (
+    <SettingsWithControl
+      label={TERMINAL_TARGET_PREFERENCE_LABEL}
+      description={TERMINAL_TARGET_PREFERENCE_DESCRIPTION}
+    >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={SETTINGS_DROPDOWN_TRIGGER_CLASS}
+            aria-label={TERMINAL_TARGET_PREFERENCE_LABEL}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              {resolvedTarget ? (
+                <WorkspaceOpenTargetIcon
+                  target={resolvedTarget}
+                  className="size-5"
+                />
+              ) : (
+                <Icon name="Terminal" className="size-5" aria-hidden />
+              )}
+              <span className="min-w-0 truncate">{buttonLabel}</span>
+            </span>
+            <Icon
+              name="ChevronDown"
+              className="size-3.5 text-muted-foreground"
+            />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          className={SETTINGS_DROPDOWN_CONTENT_CLASS}
+        >
+          <DropdownMenuItem onSelect={() => onTargetChange(null)}>
+            <Icon name="Terminal" className="size-5" aria-hidden />
+            <span className="min-w-0 truncate">
+              {BUILT_IN_TERMINAL_TARGET_LABEL}
+            </span>
+            <Icon
+              name="Check"
+              className={cn(
+                "ml-auto",
+                resolvedTarget !== null && "opacity-0",
+                COARSE_POINTER_ICON_SIZE_CLASS,
+              )}
+            />
+          </DropdownMenuItem>
+          {terminalTargets.map((target) => (
+            <DropdownMenuItem
+              key={target.id}
+              onSelect={() => onTargetChange(target.id)}
+            >
+              <WorkspaceOpenTargetIcon target={target} className="size-5" />
+              <span className="min-w-0 truncate">{target.label}</span>
+              <Icon
+                name="Check"
+                className={cn(
+                  "ml-auto",
+                  resolvedTarget?.id !== target.id && "opacity-0",
+                  COARSE_POINTER_ICON_SIZE_CLASS,
+                )}
+              />
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SettingsWithControl>
+  );
+}
+
 export function LocalOpenTargetSettingsSection({
   accessState,
   directoryTargetId,
@@ -478,7 +594,9 @@ export function LocalOpenTargetSettingsSection({
   onDirectoryTargetChange,
   onFileTargetChange,
   onRequestAccess,
+  onTerminalTargetChange,
   targets,
+  terminalTargetId,
 }: LocalOpenTargetSettingsSectionProps) {
   const [accessRequestPending, setAccessRequestPending] = useState(false);
 
@@ -567,6 +685,11 @@ export function LocalOpenTargetSettingsSection({
           definition={FILE_TARGET_PREFERENCE}
           onTargetChange={onFileTargetChange}
           preferredTargetId={fileTargetId}
+          targets={targets}
+        />
+        <TerminalOpenTargetPreferenceControl
+          onTargetChange={onTerminalTargetChange}
+          preferredTargetId={terminalTargetId}
           targets={targets}
         />
       </div>
@@ -1096,6 +1219,8 @@ export function SettingsView() {
     useWorkspaceOpenTargetPreference(workspaceOpenTargets);
   const [fileTargetId, setFileTargetId] =
     useFileOpenTargetPreference(workspaceOpenTargets);
+  const [terminalTargetId, setTerminalTargetId] =
+    useTerminalOpenTargetPreference();
   const [openLinksInAppBrowser, setOpenLinksInAppBrowser] =
     useOpenLinksInAppBrowserPreference();
   const [rewriteLocalhostLinks, setRewriteLocalhostLinks] =
@@ -1206,7 +1331,9 @@ export function SettingsView() {
           onDirectoryTargetChange={setDirectoryTargetId}
           onFileTargetChange={setFileTargetId}
           onRequestAccess={requestAccess}
+          onTerminalTargetChange={setTerminalTargetId}
           targets={workspaceOpenTargets}
+          terminalTargetId={terminalTargetId}
         />
         <FileOpenersSettingsSection />
       </>

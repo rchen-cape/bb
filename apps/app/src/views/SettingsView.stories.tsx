@@ -132,6 +132,8 @@ function useSettingsStoryState() {
     useState<StoredTargetId>("finder");
   const [fileTargetId, setFileTargetId] =
     useState<StoredTargetId>("default-app");
+  const [terminalTargetId, setTerminalTargetId] =
+    useState<StoredTargetId>(null);
   const [experiments, setExperiments] =
     useState<Experiments>(defaultExperiments);
 
@@ -156,6 +158,8 @@ function useSettingsStoryState() {
     setExperiments,
     setFileTargetId,
     setManagedBranchPrefix,
+    setTerminalTargetId,
+    terminalTargetId,
     setNavigateToThreadAfterCreate,
     setOpenLinksInAppBrowser,
     setPreferredAudioInputDeviceId,
@@ -277,7 +281,9 @@ function FilePreferencesStory() {
       onDirectoryTargetChange={handleDirectoryTargetChange}
       onFileTargetChange={handleFileTargetChange}
       onRequestAccess={async () => true}
+      onTerminalTargetChange={state.setTerminalTargetId}
       targets={connectedTargets}
+      terminalTargetId={state.terminalTargetId}
     />
   );
 }

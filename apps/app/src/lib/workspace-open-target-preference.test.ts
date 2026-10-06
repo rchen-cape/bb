@@ -1,6 +1,7 @@
 import type { WorkspaceOpenTarget } from "@bb/host-daemon-contract";
 import { describe, expect, it } from "vitest";
 import {
+  resolvePreferredTerminalOpenTarget,
   resolvePreferredWorkspaceOpenFileTarget,
   resolvePreferredWorkspaceOpenTarget,
 } from "./workspace-open-target-preference";
@@ -191,5 +192,70 @@ describe("resolvePreferredWorkspaceOpenFileTarget", () => {
         targets: [defaultAppTarget, remoteVscodeTarget],
       }),
     ).toBe(remoteVscodeTarget);
+  });
+});
+
+describe("resolvePreferredTerminalOpenTarget", () => {
+  it("returns null when no terminal preference is stored", () => {
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        preferredTargetId: null,
+        targets: [terminalTarget, vscodeTarget],
+      }),
+    ).toBeNull();
+  });
+
+  it("returns the stored terminal target when it is available", () => {
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        preferredTargetId: "terminal",
+        targets: [vscodeTarget, terminalTarget],
+      }),
+    ).toBe(terminalTarget);
+  });
+
+  it("returns null when the stored target is not installed", () => {
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        preferredTargetId: "ghostty",
+        targets: [vscodeTarget, terminalTarget],
+      }),
+    ).toBeNull();
+  });
+
+  it("ignores stored targets that are not terminals", () => {
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        preferredTargetId: "vscode",
+        targets: [vscodeTarget, terminalTarget],
+      }),
+    ).toBeNull();
+  });
+
+  it("requires remote SSH directory support for remote workspaces", () => {
+    const sshTerminal: WorkspaceOpenTarget = {
+      ...terminalTarget,
+      id: "ghostty",
+      label: "Ghostty",
+      remoteSshCapabilities: {
+        openDirectory: true,
+        openFile: true,
+        openFileAtLine: true,
+      },
+    };
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        contextKind: "remote-ssh",
+        preferredTargetId: "terminal",
+        targets: [terminalTarget, sshTerminal],
+      }),
+    ).toBeNull();
+    expect(
+      resolvePreferredTerminalOpenTarget({
+        contextKind: "remote-ssh",
+        preferredTargetId: "ghostty",
+        targets: [terminalTarget, sshTerminal],
+      }),
+    ).toBe(sshTerminal);
   });
 });

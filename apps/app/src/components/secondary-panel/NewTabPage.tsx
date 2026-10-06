@@ -17,6 +17,7 @@ interface NewTabPageProps extends NewTabPageFileSearchProps {
   onStartTerminal?: StartTerminalHandler;
   pluginActions?: readonly PluginPanelActionEntry[];
   startTerminalDisabled?: boolean;
+  startTerminalLabel?: string;
   startTerminalTrailing?: ReactNode;
 }
 
@@ -35,6 +36,7 @@ export function NewTabPage({
   recentItemsThreadId,
   showFileSearch,
   startTerminalDisabled,
+  startTerminalLabel,
   startTerminalTrailing,
 }: NewTabPageProps) {
   return (
@@ -51,6 +53,7 @@ export function NewTabPage({
             onStartTerminal={onStartTerminal}
             pluginActions={pluginActions}
             startTerminalDisabled={startTerminalDisabled}
+            startTerminalLabel={startTerminalLabel}
             startTerminalTrailing={startTerminalTrailing}
           />
         }

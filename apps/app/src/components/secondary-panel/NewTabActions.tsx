@@ -31,6 +31,7 @@ export interface NewTabActionsProps {
   onOpenBrowser?: OpenBrowserHandler;
   onStartTerminal?: StartTerminalHandler;
   startTerminalDisabled?: boolean;
+  startTerminalLabel?: string;
   startTerminalTrailing?: ReactNode;
   pluginActions?: readonly PluginPanelActionEntry[];
 }
@@ -69,6 +70,7 @@ const NEW_TAB_ACTION_DRAG_HANDLE_CLASS =
   "cursor-grab touch-none opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing group-hover:opacity-100 [@media(hover:none)]:opacity-100";
 const OPEN_BROWSER_ACTION_ID = "file-search-result-open-browser";
 const START_TERMINAL_ACTION_ID = "file-search-result-start-terminal";
+const START_TERMINAL_ACTION_LABEL = "Start terminal";
 
 function actionIcon(iconName: IconName): ReactNode {
   return (
@@ -85,6 +87,7 @@ export function NewTabActions({
   onStartTerminal,
   pluginActions,
   startTerminalDisabled = false,
+  startTerminalLabel = START_TERMINAL_ACTION_LABEL,
   startTerminalTrailing,
 }: NewTabActionsProps) {
   const terminalShortcut = useAppCommandShortcut("terminal.open");
@@ -107,7 +110,7 @@ export function NewTabActions({
     actions.push({
       id: START_TERMINAL_ACTION_ID,
       icon: actionIcon("Terminal"),
-      label: "Start terminal",
+      label: startTerminalLabel,
       disabled: startTerminalDisabled,
       shortcut: terminalShortcut,
       trailing: startTerminalTrailing ?? null,

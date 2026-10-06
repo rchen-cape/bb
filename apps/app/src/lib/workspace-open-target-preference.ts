@@ -11,6 +11,7 @@ import { createNullableLocalStorageEnumStorage } from "./browser-storage";
 
 export const WORKSPACE_OPEN_TARGET_STORAGE_KEY = "bb.workspaceOpenTarget";
 export const FILE_OPEN_TARGET_STORAGE_KEY = "bb.fileOpenTarget";
+export const TERMINAL_OPEN_TARGET_STORAGE_KEY = "bb.terminalOpenTarget";
 
 export type StoredWorkspaceOpenTargetPreference = WorkspaceOpenTargetId | null;
 export type WorkspaceOpenTargetCapability =
@@ -64,6 +65,12 @@ interface ResolvePreferredWorkspaceOpenFileTargetArgs {
   contextKind?: WorkspaceOpenTargetContextKind;
   lineNumber?: number | null;
   path: string;
+  preferredTargetId: StoredWorkspaceOpenTargetPreference;
+  targets: WorkspaceOpenTarget[];
+}
+
+interface ResolvePreferredTerminalOpenTargetArgs {
+  contextKind?: WorkspaceOpenTargetContextKind;
   preferredTargetId: StoredWorkspaceOpenTargetPreference;
   targets: WorkspaceOpenTarget[];
 }
@@ -224,6 +231,43 @@ export const fileOpenTargetPreferenceAtom =
     { getOnInit: true },
   );
 
+export const terminalOpenTargetPreferenceAtom =
+  atomWithStorage<StoredWorkspaceOpenTargetPreference>(
+    TERMINAL_OPEN_TARGET_STORAGE_KEY,
+    null,
+    workspaceOpenTargetPreferenceStorage,
+    { getOnInit: true },
+  );
+
+export function isTerminalWorkspaceOpenTarget(
+  target: WorkspaceOpenTarget,
+): boolean {
+  return target.kind === "terminal";
+}
+
+export function resolvePreferredTerminalOpenTarget(
+  args: ResolvePreferredTerminalOpenTargetArgs,
+): WorkspaceOpenTarget | null {
+  if (args.preferredTargetId === null) {
+    return null;
+  }
+  const preferredTarget = args.targets.find(
+    (target) => target.id === args.preferredTargetId,
+  );
+  if (
+    !preferredTarget ||
+    !isTerminalWorkspaceOpenTarget(preferredTarget) ||
+    !supportsWorkspaceOpenTargetCapability({
+      capability: "openDirectory",
+      contextKind: args.contextKind ?? "local",
+      target: preferredTarget,
+    })
+  ) {
+    return null;
+  }
+  return preferredTarget;
+}
+
 export function resolvePreferredWorkspaceOpenTarget(
   args: ResolvePreferredWorkspaceOpenTargetArgs,
 ): WorkspaceOpenTarget | null {
@@ -352,4 +396,8 @@ export function useFileOpenTargetPreference(targets?: WorkspaceOpenTarget[]) {
     targets,
   );
   return [preferredTargetId, setPreferredTargetId] as const;
+}
+
+export function useTerminalOpenTargetPreference() {
+  return useAtom(terminalOpenTargetPreferenceAtom);
 }

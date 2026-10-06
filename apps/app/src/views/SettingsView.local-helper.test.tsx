@@ -37,7 +37,9 @@ function renderSection({
       onDirectoryTargetChange={vi.fn()}
       onFileTargetChange={vi.fn()}
       onRequestAccess={onRequestAccess}
+      onTerminalTargetChange={vi.fn()}
       targets={[]}
+      terminalTargetId={null}
     />,
   );
   return { onRequestAccess };
