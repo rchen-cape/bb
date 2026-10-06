@@ -49,6 +49,7 @@ const SUMMARIZED_ADAPTIVE_THINKING = {
   display: "summarized",
 } satisfies Exclude<Options["thinking"], undefined>;
 const CLAUDE_CODE_EXECUTABLE_ENV = "BB_CLAUDE_CODE_EXECUTABLE";
+const WORKSPACE_SANDBOX_EXCLUDED_COMMANDS = ["git commit *", "git push *"];
 
 export function toSdkEffort(
   reasoningLevel: ReasoningLevel,
@@ -117,6 +118,7 @@ function buildWorkspaceWriteSandbox(
     failIfUnavailable: false,
     autoAllowBashIfSandboxed: true,
     allowUnsandboxedCommands: true,
+    excludedCommands: [...WORKSPACE_SANDBOX_EXCLUDED_COMMANDS],
     network: { allowLocalBinding: true },
     ...(allowWrite.length > 0
       ? { filesystem: { allowWrite: [...allowWrite] } }

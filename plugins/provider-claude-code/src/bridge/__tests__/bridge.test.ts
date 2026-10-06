@@ -1197,6 +1197,7 @@ describe("bridge", () => {
       failIfUnavailable: false,
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: true,
+      excludedCommands: ["git commit *", "git push *"],
       network: { allowLocalBinding: true },
     });
     expect(autoOptions.permissionMode).toBe("auto");
@@ -1205,6 +1206,7 @@ describe("bridge", () => {
       failIfUnavailable: false,
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: true,
+      excludedCommands: ["git commit *", "git push *"],
       network: { allowLocalBinding: true },
     });
   });
@@ -1256,6 +1258,7 @@ describe("bridge", () => {
       failIfUnavailable: false,
       autoAllowBashIfSandboxed: true,
       allowUnsandboxedCommands: true,
+      excludedCommands: ["git commit *", "git push *"],
       network: { allowLocalBinding: true },
       filesystem: {
         allowWrite: ["/repo/.git/worktrees/bb13", "/repo/.git/objects"],
@@ -2809,6 +2812,7 @@ describe("bridge", () => {
           enabled: true,
           autoAllowBashIfSandboxed: true,
           allowUnsandboxedCommands: true,
+          excludedCommands: ["git commit *", "git push *"],
         },
       });
 
@@ -2839,6 +2843,7 @@ describe("bridge", () => {
           enabled: true,
           autoAllowBashIfSandboxed: true,
           allowUnsandboxedCommands: true,
+          excludedCommands: ["git commit *", "git push *"],
         },
       });
 
