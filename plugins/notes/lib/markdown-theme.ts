@@ -227,8 +227,15 @@ export function markdownTokenRules(
   });
 }
 
+/** Overrides the near-black/near-white a syntax theme ships with the app's own canvas/ink tones. */
+export interface WorkbenchColorOverrides {
+  background?: string;
+  foreground?: string;
+}
+
 export function workbenchColors(
   theme: PluginCodeThemeData,
+  overrides?: WorkbenchColorOverrides,
 ): Record<string, string> {
   const colors: Record<string, string> = {};
   for (const [id, value] of Object.entries(theme.colors)) {
@@ -248,14 +255,21 @@ export function workbenchColors(
   ) {
     colors["editor.foreground"] = theme.fg;
   }
+  if (overrides?.background !== undefined && WORKBENCH_COLOR.test(overrides.background)) {
+    colors["editor.background"] = overrides.background;
+  }
+  if (overrides?.foreground !== undefined && WORKBENCH_COLOR.test(overrides.foreground)) {
+    colors["editor.foreground"] = overrides.foreground;
+  }
   return colors;
 }
 
 export function editorBackground(
   theme: PluginCodeThemeData | null,
+  overrides?: WorkbenchColorOverrides,
 ): string | null {
   if (theme === null) return null;
-  return workbenchColors(theme)["editor.background"] ?? null;
+  return workbenchColors(theme, overrides)["editor.background"] ?? null;
 }
 
 export function notesThemeName(name: string): string {
@@ -264,12 +278,13 @@ export function notesThemeName(name: string): string {
 
 export function toMarkdownMonacoTheme(
   theme: PluginCodeThemeData,
+  overrides?: WorkbenchColorOverrides,
 ): MonacoNs.editor.IStandaloneThemeData {
   return {
     base: theme.type === "light" ? "vs" : "vs-dark",
     inherit: true,
     rules: [...baseTokenRules(theme), ...markdownTokenRules(theme)],
-    colors: workbenchColors(theme),
+    colors: workbenchColors(theme, overrides),
   };
 }
 
@@ -282,16 +297,17 @@ export interface AppliedTheme {
 export function applyMarkdownTheme(
   monaco: typeof MonacoNs,
   state: { mode: "light" | "dark"; theme: PluginCodeThemeData | null },
+  overrides?: WorkbenchColorOverrides,
 ): AppliedTheme {
   if (state.theme === null) {
     const base = state.mode === "dark" ? "vs-dark" : "vs";
     return { name: base, base, colors: {} };
   }
   const name = notesThemeName(state.theme.name);
-  monaco.editor.defineTheme(name, toMarkdownMonacoTheme(state.theme));
+  monaco.editor.defineTheme(name, toMarkdownMonacoTheme(state.theme, overrides));
   return {
     name,
     base: state.theme.type === "light" ? "vs" : "vs-dark",
-    colors: workbenchColors(state.theme),
+    colors: workbenchColors(state.theme, overrides),
   };
 }

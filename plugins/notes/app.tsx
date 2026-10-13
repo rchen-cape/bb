@@ -20,7 +20,11 @@ import {
 } from "@bb/shared-ui/dialog";
 import type { rpcContract } from "./server.js";
 import { loadMonaco, overflowWidgetsNode, setOverflowWidgetsTheme } from "./lib/monaco-loader.js";
-import { applyMarkdownTheme, editorBackground } from "./lib/markdown-theme.js";
+import {
+  applyMarkdownTheme,
+  editorBackground,
+  type WorkbenchColorOverrides,
+} from "./lib/markdown-theme.js";
 import { DecorationController } from "./lib/decoration-controller.js";
 import {
   buildTree,
@@ -57,6 +61,33 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/**
+ * Reads a CSS custom property through a throwaway element so the browser
+ * resolves it (e.g. `oklch(...)`) to an `rgb()` string, then hex-encodes it.
+ * Lets the editor's background/foreground track the app's own --canvas/--ink
+ * tokens instead of the much darker/brighter ones a syntax theme ships.
+ */
+function resolveCssVariableColor(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const probe = document.createElement("span");
+  probe.style.color = `var(${name})`;
+  probe.style.display = "none";
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  document.body.removeChild(probe);
+  const match = resolved.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (match === null) return undefined;
+  const toHex = (value: string) => Number(value).toString(16).padStart(2, "0");
+  return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`;
+}
+
+function resolveEditorColorOverrides(): WorkbenchColorOverrides {
+  return {
+    background: resolveCssVariableColor("--canvas"),
+    foreground: resolveCssVariableColor("--ink"),
+  };
+}
+
 function NotesPanel({ subPath }: PluginNavPanelProps) {
   const rpc = useRpc<typeof rpcContract>();
   const navigate = useBbNavigate();
@@ -64,6 +95,15 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
 
   const codeThemeRef = useRef(codeTheme);
   codeThemeRef.current = codeTheme;
+
+  // Re-resolved when the mode flips so --canvas/--ink pick up the right
+  // light/dark value; cheap, so no need to tie it to anything finer-grained.
+  const colorOverrides = useMemo(
+    () => resolveEditorColorOverrides(),
+    [codeTheme.mode],
+  );
+  const colorOverridesRef = useRef(colorOverrides);
+  colorOverridesRef.current = colorOverrides;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const monacoRef = useRef<typeof MonacoNs | null>(null);
@@ -231,7 +271,11 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         monacoRef.current = monaco;
 
         sha256Ref.current = file.sha256;
-        const applied = applyMarkdownTheme(monaco, codeThemeRef.current);
+        const applied = applyMarkdownTheme(
+          monaco,
+          codeThemeRef.current,
+          colorOverridesRef.current,
+        );
         setOverflowWidgetsTheme(applied.base);
 
         const editor = monaco.editor.create(container, {
@@ -241,7 +285,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           automaticLayout: true,
           wordWrap: wordWrap ? "on" : "off",
           lineNumbers: settings["editor.lineNumbers"] ?? "on",
-          fontSize: settings["editor.fontSize"] ?? 13,
+          fontSize: settings["editor.fontSize"] ?? 12,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           // Prose, not code: no bracket guides, no occurrence boxes, and a
@@ -308,7 +352,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     const monaco = monacoRef.current;
     const editor = editorRef.current;
     if (monaco === null || editor === null) return;
-    const applied = applyMarkdownTheme(monaco, codeTheme);
+    const applied = applyMarkdownTheme(monaco, codeTheme, colorOverrides);
     editor.updateOptions({ theme: applied.name });
     setOverflowWidgetsTheme(applied.base);
     if (activePath !== null) {
@@ -319,7 +363,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         path: activePath,
       });
     }
-  }, [activePath, codeTheme, settings, status]);
+  }, [activePath, codeTheme, colorOverrides, settings, status]);
 
   useEffect(() => {
     editorRef.current?.updateOptions({ wordWrap: wordWrap ? "on" : "off" });
@@ -455,7 +499,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     }
   }, [activePath, navigate, pendingDelete, refreshTree, rpc]);
 
-  const background = editorBackground(codeTheme.theme);
+  const background = editorBackground(codeTheme.theme, colorOverrides);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
