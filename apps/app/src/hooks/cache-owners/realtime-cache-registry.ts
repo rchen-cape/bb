@@ -431,7 +431,7 @@ export const REALTIME_THREAD_CHANGE_REGISTRY = {
   },
   "awaiting-reply-changed": {
     flush: "debounced",
-    dirty: [markThreadDetailQueryStale, markThreadListQueriesStale],
+    dirty: [markThreadDetailQueryStale, dirtyActiveThreadListQueries],
   },
   "tabs-changed": {
     flush: "immediate",
