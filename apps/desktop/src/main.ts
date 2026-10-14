@@ -163,6 +163,7 @@ import {
   type DesktopBrowserWindow,
   type DesktopBrowserWindowCreator,
   type DesktopWindowFactory,
+  macosTrafficLightPosition,
 } from "./desktop-window-factory.js";
 import {
   hasLinuxWindowArgument,
@@ -202,6 +203,7 @@ import {
   BB_DESKTOP_INSTALL_UPDATE_CHANNEL,
   BB_DESKTOP_OPEN_EXTERNAL_URL_CHANNEL,
   BB_DESKTOP_SET_THEME_CHANNEL,
+  BB_DESKTOP_ZOOM_CHANGED_CHANNEL,
   BB_DESKTOP_ZOOM_COMMAND_CHANNEL,
 } from "./desktop-update-ipc.js";
 import {
@@ -2241,6 +2243,17 @@ function registerDesktopUpdateIpc(): void {
         parsed.data,
       );
     }
+  });
+  ipcMain.on(BB_DESKTOP_ZOOM_CHANGED_CHANNEL, (event) => {
+    if (
+      process.platform !== "darwin" ||
+      !applicationWindowWebContentsIds.has(event.sender.id)
+    ) {
+      return;
+    }
+    BrowserWindow.fromWebContents(event.sender)?.setWindowButtonPosition(
+      macosTrafficLightPosition(event.sender.getZoomFactor()),
+    );
   });
   ipcMain.handle(BB_DESKTOP_GET_INFO_CHANNEL, () => {
     return getCurrentDesktopInfo();

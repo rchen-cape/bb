@@ -56,6 +56,7 @@ import {
   BB_DESKTOP_INSTALL_UPDATE_CHANNEL,
   BB_DESKTOP_OPEN_EXTERNAL_URL_CHANNEL,
   BB_DESKTOP_SET_THEME_CHANNEL,
+  BB_DESKTOP_ZOOM_CHANGED_CHANNEL,
   BB_DESKTOP_ZOOM_COMMAND_CHANNEL,
 } from "./desktop-update-ipc.js";
 import {
@@ -230,6 +231,7 @@ function notifyZoomChangeIfChanged(): void {
     return;
   }
   lastZoomFactor = zoomFactor;
+  ipcRenderer.send(BB_DESKTOP_ZOOM_CHANGED_CHANNEL);
   for (const listener of zoomListeners) {
     listener(zoomFactor);
   }
@@ -599,6 +601,7 @@ forwardParsed(
 );
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {
+  ipcRenderer.send(BB_DESKTOP_ZOOM_CHANGED_CHANNEL);
   window.addEventListener("resize", notifyZoomChangeIfChanged);
   window.addEventListener("DOMContentLoaded", () => {
     for (const button of document.querySelectorAll<HTMLElement>(
