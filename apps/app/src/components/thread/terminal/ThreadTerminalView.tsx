@@ -61,7 +61,11 @@ import {
   toTerminalCommandBlock,
   type TrackedTerminalCommandBlock,
 } from "./terminal-command-block-tracker";
-import { registerTerminalCommandBlockAction } from "./terminal-command-block-decoration";
+import {
+  registerTerminalCommandBlockAction,
+  TERMINAL_COMMAND_GUTTER_INSET_PX,
+  TERMINAL_COMMAND_GUTTER_WIDTH_PX,
+} from "./terminal-command-block-decoration";
 
 export const TERMINAL_FONT_FAMILY =
   '"JetBrainsMono Nerd Font Mono", "MesloLGS NF", "Symbols Nerd Font Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
@@ -1010,7 +1014,6 @@ export function ThreadTerminalView({
         }
         const decoration = registerTerminalCommandBlockAction({
           block,
-          label: "Add to chat",
           onActivate: (activated: TrackedTerminalCommandBlock) => {
             onCommandBlockAddToChatRef.current?.(
               toTerminalCommandBlock(trackedTerminal, activated),
@@ -1326,7 +1329,7 @@ export function ThreadTerminalView({
       >
         <ContextMenuTrigger asChild disabled={!hasTerminalContextMenuTarget}>
           <div
-            className="relative min-h-0 w-full flex-1 overflow-hidden bg-sidebar p-2"
+            className="relative min-h-0 w-full flex-1 overflow-hidden bg-sidebar py-2 pr-2"
             onContextMenuCapture={captureTerminalContextMenu}
             onPointerDown={handleTerminalPointerDown}
             onPointerUp={handleTerminalPointerRelease}
@@ -1336,10 +1339,18 @@ export function ThreadTerminalView({
             onTouchEnd={handleTerminalTouchEnd}
             onTouchCancel={handleTerminalTouchCancel}
           >
-            <div
-              ref={containerRef}
-              className="h-full min-h-0 w-full overflow-hidden"
-            />
+            <div className="relative h-full min-h-0 w-full overflow-hidden">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 border-r border-border/60 bg-muted/40"
+                style={{ width: `${TERMINAL_COMMAND_GUTTER_WIDTH_PX}px` }}
+              />
+              <div
+                ref={containerRef}
+                className="h-full min-h-0 w-full overflow-hidden"
+                style={{ paddingLeft: `${TERMINAL_COMMAND_GUTTER_INSET_PX}px` }}
+              />
+            </div>
             {connectionNoticeText !== null ? (
               <div
                 role="status"
