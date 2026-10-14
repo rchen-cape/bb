@@ -689,6 +689,14 @@ export interface PluginNavPanelRegistration {
    * Experimental: see docs/api_to_audit.md.
    */
   experimental_headerBreadcrumb?: ComponentType<PluginNavPanelProps>;
+  /**
+   * When true, the host collapses the app sidebar each time the user opens
+   * this panel from elsewhere. The user can reopen it with the sidebar
+   * controls; moving between sub-paths of the panel does not collapse it again.
+   *
+   * Experimental: see docs/api_to_audit.md.
+   */
+  experimental_hideSidebarOnOpen?: boolean;
 }
 
 /**

@@ -1794,6 +1794,26 @@ not the title bar.
    opposite ends. Confirm both are needed, or whether one slot receiving a
    position would be a better shape.
 
+## `PluginNavPanelRegistration.experimental_hideSidebarOnOpen`
+
+**Experimental (2026-10-14).** One consumer (the notes plugin).
+
+**What it does.** A nav panel can ask the host to collapse the app sidebar when
+the user opens the panel from elsewhere, giving editor-style pages the full
+width. The host does this in `PluginPanelView` through the same sidebar
+open-state setter the `sidebar.toggle` command and the sidebar trigger use.
+Navigating between sub-paths of the same panel does not collapse it again, so
+a user who reopens the sidebar keeps it open.
+
+**Audit before stabilizing.**
+
+1. **Compact viewports.** Confirm collapsing is right (or a no-op) where the
+   sidebar is a drawer.
+2. **Persistence.** The collapsed state persists like any manual collapse.
+   Decide whether the sidebar should be restored when the user leaves the panel.
+3. **Shape.** Decide whether a boolean is enough or a broader layout hint
+   (for example a preferred sidebar state) is warranted.
+
 ## `PluginNavPanelRegistration.experimental_sidebarAccessory`
 
 **Kept experimental (2026-08-22).** one consumer (the tasks plugin); item 1 below (a narrower value/badge contract) would change the API shape.

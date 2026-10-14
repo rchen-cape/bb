@@ -58,6 +58,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         apiSymbols: [
           "PluginNavPanelRegistration",
           "PluginNavPanelRegistration.experimental_headerBreadcrumb",
+          "PluginNavPanelRegistration.experimental_hideSidebarOnOpen",
           "PluginNavPanelProps",
           "PluginFixedTabRegistration",
           "PluginFixedTabDeclaration",

@@ -10,6 +10,7 @@ import {
   type DesktopWindowOpenHandler,
   type DesktopWindowOpenDevToolsOptions,
   type DesktopWindowWebContents,
+  macosTrafficLightPosition,
 } from "../src/desktop-window-factory.js";
 import type { DesktopContextMenuWebContents } from "../src/desktop-context-menu.js";
 import { readPersistedWindowStateEntries } from "../src/window-state.js";
@@ -478,6 +479,21 @@ describe("desktop window factory", () => {
       for (const key of absent) {
         expect(options).not.toHaveProperty(key);
       }
+    },
+  );
+});
+
+describe("macosTrafficLightPosition", () => {
+  it.each([
+    { zoomFactor: 0.5, y: 5 },
+    { zoomFactor: 0.9, y: 15 },
+    { zoomFactor: 1, y: 18 },
+    { zoomFactor: 1.2, y: 23 },
+    { zoomFactor: 3, y: 70 },
+  ])(
+    "keeps the lights on the zoomed chrome control axis at $zoomFactor",
+    ({ zoomFactor, y }) => {
+      expect(macosTrafficLightPosition(zoomFactor)).toEqual({ x: 18, y });
     },
   );
 });

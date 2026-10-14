@@ -1158,4 +1158,34 @@ describe("collectPluginAppRegistrations", () => {
       experimental_sidebarAccessory: SidebarAccessory,
     });
   });
+  it("keeps experimental_hideSidebarOnOpen and rejects a non-boolean", () => {
+    const definition = definePluginApp((app) => {
+      app.slots.navPanel({
+        id: "board",
+        title: "Board",
+        icon: "columns",
+        path: "board",
+        component: Component,
+        experimental_hideSidebarOnOpen: true,
+      });
+    });
+    expect(
+      collectPluginAppRegistrations(definition).navPanels[0],
+    ).toMatchObject({ experimental_hideSidebarOnOpen: true });
+
+    expect(() =>
+      collectPluginAppRegistrations(
+        definePluginApp((app) => {
+          app.slots.navPanel({
+            id: "board",
+            title: "Board",
+            icon: "columns",
+            path: "board",
+            component: Component,
+            experimental_hideSidebarOnOpen: "yes" as never,
+          });
+        }),
+      ),
+    ).toThrow(/"experimental_hideSidebarOnOpen" must be a boolean/);
+  });
 });

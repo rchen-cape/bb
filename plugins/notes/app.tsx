@@ -81,24 +81,35 @@ function reportUnsavedOnLeave(path: string, state: SaveState): void {
  * Lets the editor's background/foreground track the app's own --canvas/--ink
  * tokens instead of the much darker/brighter ones a syntax theme ships.
  */
-function resolveCssVariableColor(name: string): string | undefined {
+function resolveCssColor(expression: string): string | undefined {
   if (typeof document === "undefined") return undefined;
   const probe = document.createElement("span");
-  probe.style.color = `var(${name})`;
+  probe.style.color = expression;
   probe.style.display = "none";
   document.body.appendChild(probe);
   const resolved = getComputedStyle(probe).color;
   document.body.removeChild(probe);
-  const match = resolved.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (match === null) return undefined;
-  const toHex = (value: string) => Number(value).toString(16).padStart(2, "0");
-  return `#${toHex(match[1])}${toHex(match[2])}${toHex(match[3])}`;
+  const context = document.createElement("canvas").getContext("2d", {
+    willReadFrequently: true,
+  });
+  if (context === null || resolved === "") return undefined;
+  context.clearRect(0, 0, 1, 1);
+  context.fillStyle = resolved;
+  context.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+  if (alpha !== 255) return undefined;
+  const toHex = (value: number) => value.toString(16).padStart(2, "0");
+  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
 }
 
 function resolveEditorColorOverrides(): WorkbenchColorOverrides {
   return {
-    background: resolveCssVariableColor("--canvas"),
-    foreground: resolveCssVariableColor("--ink"),
+    background: resolveCssColor(
+      "color-mix(in oklab, var(--ink) 7%, var(--canvas))",
+    ),
+    foreground: resolveCssColor(
+      "color-mix(in oklab, var(--ink) 85%, var(--canvas))",
+    ),
   };
 }
 
@@ -278,7 +289,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           automaticLayout: true,
           wordWrap: wordWrap ? "on" : "off",
           lineNumbers: settings["editor.lineNumbers"] ?? "on",
-          fontSize: settings["editor.fontSize"] ?? 12,
+          fontSize: settings["editor.fontSize"] ?? 11,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
           // Prose, not code: no bracket guides, no occurrence boxes, and a
@@ -825,5 +836,6 @@ export default definePluginApp((app) => {
     icon: "FileText",
     path: PANEL_PATH,
     component: NotesPanel,
+    experimental_hideSidebarOnOpen: true,
   });
 });

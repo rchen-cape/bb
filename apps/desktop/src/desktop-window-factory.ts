@@ -1,4 +1,4 @@
-import type { BrowserWindowConstructorOptions, Event } from "electron";
+import type { BrowserWindowConstructorOptions, Event, Point } from "electron";
 import {
   MIN_WINDOW_HEIGHT,
   MIN_WINDOW_WIDTH,
@@ -21,10 +21,17 @@ import type { DesktopContextMenuWebContents } from "./desktop-context-menu.js";
 type DesktopWindowIcon = BrowserWindowConstructorOptions["icon"];
 
 const MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET = 18;
-const MACOS_TRAFFIC_LIGHT_POSITION = {
-  x: MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET,
-  y: MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET,
-};
+const MACOS_CHROME_CONTROL_AXIS_Y = 26;
+
+export function macosTrafficLightPosition(zoomFactor: number): Point {
+  return {
+    x: MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET,
+    y: Math.round(
+      MACOS_TRAFFIC_LIGHT_DIAGONAL_INSET +
+        MACOS_CHROME_CONTROL_AXIS_Y * (zoomFactor - 1),
+    ),
+  };
+}
 
 interface DesktopWindowOpenDetails {
   url: string;
@@ -178,7 +185,7 @@ function createWindowOptions(
       ? {
           frame: false,
           titleBarStyle: "hiddenInset" as const,
-          trafficLightPosition: MACOS_TRAFFIC_LIGHT_POSITION,
+          trafficLightPosition: macosTrafficLightPosition(1),
         }
       : { autoHideMenuBar: true }),
     height: args.bounds.height,
