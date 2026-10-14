@@ -174,9 +174,10 @@ export function colorForScopes(
 
 function baseTokenRules(
   theme: PluginCodeThemeData,
+  overrides?: WorkbenchColorOverrides,
 ): MonacoNs.editor.ITokenThemeRule[] {
   const rules: MonacoNs.editor.ITokenThemeRule[] = [];
-  const base = normalizeTokenColor(theme.fg);
+  const base = normalizeTokenColor(overrides?.foreground ?? theme.fg);
   if (base !== undefined) rules.push({ token: "", foreground: base });
   for (const rule of theme.tokenColors) {
     const foreground = normalizeTokenColor(rule.settings.foreground);
@@ -283,7 +284,10 @@ export function toMarkdownMonacoTheme(
   return {
     base: theme.type === "light" ? "vs" : "vs-dark",
     inherit: true,
-    rules: [...baseTokenRules(theme), ...markdownTokenRules(theme)],
+    rules: [
+      ...baseTokenRules(theme, overrides),
+      ...markdownTokenRules(theme),
+    ],
     colors: workbenchColors(theme, overrides),
   };
 }
