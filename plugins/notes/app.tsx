@@ -107,9 +107,7 @@ function resolveEditorColorOverrides(): WorkbenchColorOverrides {
     background: resolveCssColor(
       "color-mix(in oklab, var(--ink) 7%, var(--canvas))",
     ),
-    foreground: resolveCssColor(
-      "color-mix(in oklab, var(--ink) 85%, var(--canvas))",
-    ),
+    foreground: resolveCssColor("var(--foreground)"),
   };
 }
 
