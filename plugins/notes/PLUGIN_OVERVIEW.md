@@ -2,12 +2,12 @@ A Markdown editor for your notes folder, in its own panel. It opens the files in
 
 ## What you get
 
-- A file tree for your notes folder. Create notes and folders, rename, delete, and filter by name. Only Markdown files appear, so the folder's other files are left alone.
+- A file tree for your notes folder. Create notes and folders, rename, delete, and filter by name. Only Markdown files appear, so the folder's other files are left alone. Folders start collapsed, and the ones you open stay open when you come back to the panel.
 - Markdown colouring built for prose instead of code: a different colour for each heading level, dimmed text on finished `- [x]` tasks, and distinct styling for links, quotes, tables, bold, italic, and inline code. The colours follow your bb theme in light and dark.
 - Your own highlight rules. Notes understands the `highlight.regexes` format from VS Code's Highlight extension, so tags such as `#PRIORITY`, `#DONE`, `TODO`, and `FIXME` can be coloured, given a background, struck through, or marked on the scrollbar. A useful set is applied out of the box.
 - A table of contents button that fills the block between `<!-- toc -->` and `<!-- /toc -->` and refreshes it whenever you press it again.
 - Find in note, folding, word navigation, and word wrap, from the same editor VS Code uses.
-- Save with Cmd+S, or Ctrl+S on Linux and Windows. If the note changed on disk since you opened it, the save stops and offers Reload or Overwrite.
+- Autosave: a note saves a second after you stop typing, and right away when you click out of the editor, open another note, or leave the panel. Cmd+S, or Ctrl+S on Linux and Windows, saves immediately. If the note changed on disk since you opened it, autosave stops and offers Reload or Overwrite.
 
 ## How it works
 

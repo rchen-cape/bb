@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   definePluginApp,
   experimental_useCodeTheme,
+  experimental_usePluginId,
   useBbNavigate,
   useRpc,
   type PluginNavPanelProps,
@@ -26,6 +27,8 @@ import {
   type WorkbenchColorOverrides,
 } from "./lib/markdown-theme.js";
 import { DecorationController } from "./lib/decoration-controller.js";
+import { NoteAutosave, type SaveState } from "./lib/autosave.js";
+import { expandedFoldersStorageKey } from "./lib/expanded-folders.js";
 import {
   buildTree,
   decodeSubPath,
@@ -43,12 +46,7 @@ import { NotesToolbar, type SaveIndicator } from "./components/NotesToolbar.js";
 
 const PANEL_PATH = "notes";
 
-type SaveState =
-  | { kind: "clean" }
-  | { kind: "dirty" }
-  | { kind: "saving" }
-  | { kind: "error"; message: string }
-  | { kind: "conflict" };
+const closingNotes = new Map<string, Promise<SaveState>>();
 
 type EditorStatus =
   | { kind: "idle" }
@@ -59,6 +57,22 @@ type EditorStatus =
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function isWithin(path: string | null, ancestor: string): path is string {
+  return path !== null && (path === ancestor || path.startsWith(`${ancestor}/`));
+}
+
+function saveFailed(state: SaveState): boolean {
+  return state.kind === "error" || state.kind === "conflict";
+}
+
+function reportUnsavedOnLeave(path: string, state: SaveState): void {
+  if (state.kind === "conflict") {
+    toast.error(`${path} changed on disk, so your last edits were not saved`);
+  } else if (state.kind === "error") {
+    toast.error(`Could not save ${path}: ${state.message}`);
+  }
 }
 
 /**
@@ -92,6 +106,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
   const rpc = useRpc<typeof rpcContract>();
   const navigate = useBbNavigate();
   const codeTheme = experimental_useCodeTheme();
+  const pluginId = experimental_usePluginId();
 
   const codeThemeRef = useRef(codeTheme);
   codeThemeRef.current = codeTheme;
@@ -109,13 +124,15 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
   const monacoRef = useRef<typeof MonacoNs | null>(null);
   const editorRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
   const decorationsRef = useRef<DecorationController | null>(null);
-  const sha256Ref = useRef<string | null>(null);
-  const saveStateRef = useRef<SaveState>({ kind: "clean" });
+  const autosaveRef = useRef<NoteAutosave | null>(null);
+  const navigationRef = useRef(0);
 
   /** The route owns which note is open, so a deep link restores it. */
   const activePath = subPath === "" ? null : decodeSubPath(subPath);
+  const activePathRef = useRef(activePath);
+  activePathRef.current = activePath;
 
-  const [saveState, setSaveStateValue] = useState<SaveState>({ kind: "clean" });
+  const [saveState, setSaveState] = useState<SaveState>({ kind: "clean" });
   const [status, setStatus] = useState<EditorStatus>({ kind: "idle" });
   const [settings, setSettings] = useState<NotesSettings>(
     IMPORTED_VSCODE_SETTINGS,
@@ -135,9 +152,10 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     error: string | null;
   }>({ entries: [], truncated: false, isLoading: true, error: null });
 
-  const setSaveState = useCallback((next: SaveState) => {
-    saveStateRef.current = next;
-    setSaveStateValue(next);
+  const detachAutosave = useCallback((): NoteAutosave | null => {
+    const autosave = autosaveRef.current;
+    autosaveRef.current = null;
+    return autosave;
   }, []);
 
   const nodes = useMemo(() => buildTree(tree.entries), [tree.entries]);
@@ -193,70 +211,46 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     };
   }, [rpc]);
 
-  const writeContent = useCallback(
-    async (expectedSha256: string | null) => {
-      const editor = editorRef.current;
-      if (editor === null || activePath === null) return;
-      setSaveState({ kind: "saving" });
-      try {
-        const result = await rpc.call("write", {
-          path: activePath,
-          content: editor.getValue(),
-          expectedSha256,
-        });
-        if (result.outcome === "conflict") {
-          setSaveState({ kind: "conflict" });
-          return;
-        }
-        sha256Ref.current = result.sha256;
-        setSaveState({ kind: "clean" });
-      } catch (error) {
-        setSaveState({ kind: "error", message: errorText(error) });
-      }
-    },
-    [activePath, rpc, setSaveState],
-  );
-
-  const save = useCallback(async () => {
-    if (saveStateRef.current.kind === "saving") return;
-    await writeContent(sha256Ref.current);
-  }, [writeContent]);
-
-  const saveRef = useRef(save);
-  saveRef.current = save;
-
   const reload = useCallback(async () => {
     const editor = editorRef.current;
-    if (editor === null || activePath === null) return;
+    const autosave = autosaveRef.current;
+    if (editor === null || autosave === null || activePath === null) return;
     setIsReloading(true);
     try {
-      const file = await rpc.call("read", { path: activePath });
-      if (file.kind !== "text") return;
-      sha256Ref.current = file.sha256;
-      editor.setValue(file.content);
-      setSaveState({ kind: "clean" });
+      await autosave.replace(
+        async () => {
+          const file = await rpc.call("read", { path: activePath });
+          if (file.kind !== "text") throw new Error(file.reason);
+          return file;
+        },
+        (content) => editor.setValue(content),
+      );
     } catch (error) {
-      setSaveState({ kind: "error", message: errorText(error) });
+      toast.error(`Could not reload ${activePath}: ${errorText(error)}`);
     } finally {
       setIsReloading(false);
     }
-  }, [activePath, rpc, setSaveState]);
+  }, [activePath, rpc]);
 
   // Boot Monaco and load the open note. Re-runs per note so each gets a
   // fresh model, which is what keeps undo history from leaking between them.
   useEffect(() => {
+    setSaveState({ kind: "clean" });
     if (activePath === null) {
       setStatus({ kind: "idle" });
       return;
     }
+    const path = activePath;
     let disposed = false;
     setStatus({ kind: "loading" });
 
     void (async () => {
       try {
+        await closingNotes.get(path);
+        if (disposed) return;
         const [{ baseUrl }, file] = await Promise.all([
           rpc.call("assets", null),
-          rpc.call("read", { path: activePath }),
+          rpc.call("read", { path }),
         ]);
         if (disposed) return;
         if (file.kind === "unsupported") {
@@ -270,7 +264,6 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         if (container === null) return;
         monacoRef.current = monaco;
 
-        sha256Ref.current = file.sha256;
         const applied = applyMarkdownTheme(
           monaco,
           codeThemeRef.current,
@@ -306,6 +299,19 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           overflowWidgetsDomNode: overflowWidgetsNode(),
         });
         editorRef.current = editor;
+        const model = editor.getModel();
+        if (model !== null) {
+          const autosave: NoteAutosave = new NoteAutosave({
+            document: model,
+            sha256: file.sha256,
+            write: (content, expectedSha256) =>
+              rpc.call("write", { path, content, expectedSha256 }),
+            onStateChange: (state) => {
+              if (autosaveRef.current === autosave) setSaveState(state);
+            },
+          });
+          autosaveRef.current = autosave;
+        }
         setStatus({ kind: "ready" });
 
         const decorations = new DecorationController(monaco, editor);
@@ -314,18 +320,19 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           settings,
           themeType: codeThemeRef.current.theme?.type ?? codeThemeRef.current.mode,
           colors: applied.colors,
-          path: activePath,
+          path,
         });
 
         editor.onDidChangeModelContent(() => {
-          if (saveStateRef.current.kind === "clean") {
-            setSaveState({ kind: "dirty" });
-          }
+          autosaveRef.current?.edited();
           decorationsRef.current?.schedule();
+        });
+        editor.onDidBlurEditorText(() => {
+          void autosaveRef.current?.flush();
         });
         editor.addCommand(
           monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-          () => void saveRef.current(),
+          () => void autosaveRef.current?.flush(),
         );
       } catch (error) {
         if (disposed) return;
@@ -335,6 +342,19 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
 
     return () => {
       disposed = true;
+      const autosave = detachAutosave();
+      if (autosave !== null) {
+        const closing = autosave
+          .close(true)
+          .then((state) => {
+            reportUnsavedOnLeave(path, state);
+            return state;
+          })
+          .finally(() => {
+            if (closingNotes.get(path) === closing) closingNotes.delete(path);
+          });
+        closingNotes.set(path, closing);
+      }
       decorationsRef.current?.dispose();
       decorationsRef.current = null;
       editorRef.current?.getModel()?.dispose();
@@ -346,7 +366,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     // dependencies: changing them must not tear down the editor and lose the
     // user's cursor and undo stack.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePath, rpc, setSaveState]);
+  }, [activePath, detachAutosave, rpc]);
 
   useEffect(() => {
     const monaco = monacoRef.current;
@@ -384,11 +404,24 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
       if (event.key !== "s" || !(event.metaKey || event.ctrlKey)) return;
       if (event.defaultPrevented) return;
       event.preventDefault();
-      void saveRef.current();
+      void autosaveRef.current?.flush();
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activePath]);
+
+  useEffect(() => {
+    const flush = () => void autosaveRef.current?.flush();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, []);
 
   const insertToc = useCallback(() => {
     const editor = editorRef.current;
@@ -430,10 +463,20 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     );
   }, [settings]);
 
+  useEffect(
+    () => () => {
+      navigationRef.current += 1;
+    },
+    [activePath],
+  );
+
   const requestOpen = useCallback(
-    (path: string) => {
+    async (path: string) => {
+      const navigation = ++navigationRef.current;
       if (path === activePath) return;
-      if (saveStateRef.current.kind === "dirty") {
+      const state = await autosaveRef.current?.flush();
+      if (navigation !== navigationRef.current) return;
+      if (state !== undefined && saveFailed(state)) {
         setPendingNavigation(path);
         return;
       }
@@ -454,27 +497,40 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         const path = withMarkdownExtension(rawPath);
         const created = await rpc.call("createFile", { path });
         await refreshTree();
-        openNote(created.path);
+        await requestOpen(created.path);
       } catch (error) {
         toast.error(errorText(error));
       }
     },
-    [openNote, refreshTree, rpc],
+    [refreshTree, requestOpen, rpc],
   );
 
   const rename = useCallback(
-    async (from: string, to: string) => {
+    async (from: string, to: string): Promise<string | null> => {
+      if (isWithin(activePath, from)) {
+        const state = await autosaveRef.current?.flush();
+        if (state !== undefined && saveFailed(state)) {
+          toast.error("Save or reload the open note before moving it");
+          return null;
+        }
+      }
       try {
         const target = from.includes(".") ? withMarkdownExtension(to) : to;
         const result = await rpc.call("rename", { from, to: target });
+        const current = activePathRef.current;
+        if (isWithin(current, from)) {
+          void detachAutosave()?.close(false);
+          openNote(`${result.path}${current.slice(from.length)}`);
+        }
         await refreshTree();
-        if (from === activePath) openNote(result.path);
         toast.success("Renamed");
+        return result.path;
       } catch (error) {
         toast.error(errorText(error));
+        return null;
       }
     },
-    [activePath, openNote, refreshTree, rpc],
+    [activePath, detachAutosave, openNote, refreshTree, rpc],
   );
 
   const confirmDelete = useCallback(async () => {
@@ -486,18 +542,16 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         path: node.path,
         recursive: node.kind === "directory",
       });
-      await refreshTree();
-      if (
-        activePath === node.path ||
-        (node.kind === "directory" && activePath?.startsWith(`${node.path}/`))
-      ) {
+      if (isWithin(activePathRef.current, node.path)) {
+        void detachAutosave()?.close(false);
         navigate.toPluginPanel(PANEL_PATH, { subPath: "" });
       }
+      await refreshTree();
       toast.success(node.kind === "directory" ? "Folder deleted" : "Note deleted");
     } catch (error) {
       toast.error(errorText(error));
     }
-  }, [activePath, navigate, pendingDelete, refreshTree, rpc]);
+  }, [detachAutosave, navigate, pendingDelete, refreshTree, rpc]);
 
   const background = editorBackground(codeTheme.theme, colorOverrides);
 
@@ -512,14 +566,15 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         onToggleWordWrap={() => setWordWrap((wrap) => !wrap)}
         onInsertToc={insertToc}
         onReload={() => void reload()}
-        onSave={() => void save()}
         isReloading={isReloading}
         canEdit={status.kind === "ready"}
       />
 
       <Notice
-        onOverwrite={() => void writeContent(null)}
+        onOverwrite={() => void autosaveRef.current?.overwrite()}
+        onRetry={() => void autosaveRef.current?.flush()}
         onReload={() => void reload()}
+        isReloading={isReloading}
         saveState={saveState}
         status={status}
       />
@@ -533,9 +588,10 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
               isLoading={tree.isLoading}
               error={tree.error}
               truncated={tree.truncated}
-              onOpen={requestOpen}
+              expandedFoldersKey={expandedFoldersStorageKey(pluginId)}
+              onOpen={(path) => void requestOpen(path)}
               onCreate={(kind, path) => void create(kind, path)}
-              onRename={(from, to) => void rename(from, to)}
+              onRename={rename}
               onDelete={setPendingDelete}
             />
             {root !== "" ? (
@@ -576,7 +632,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           <DialogHeader>
             <DialogTitle>Discard unsaved changes?</DialogTitle>
             <DialogDescription>
-              {activePath} has changes that have not been saved. Opening
+              {activePath} has changes that could not be saved. Opening
               another note will lose them.
             </DialogDescription>
           </DialogHeader>
@@ -592,7 +648,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
                 const next = pendingNavigation;
                 setPendingNavigation(null);
                 if (next !== null) {
-                  setSaveState({ kind: "clean" });
+                  void detachAutosave()?.close(false);
                   openNote(next);
                 }
               }}
@@ -681,12 +737,16 @@ function indicatorFor(
 
 function Notice({
   onOverwrite,
+  onRetry,
   onReload,
+  isReloading,
   saveState,
   status,
 }: {
   onOverwrite: () => void;
+  onRetry: () => void;
   onReload: () => void;
+  isReloading: boolean;
   saveState: SaveState;
   status: EditorStatus;
 }) {
@@ -694,13 +754,20 @@ function Notice({
     return (
       <NoticeRow tone="error">
         This note changed on disk since you opened it.
-        <NoticeAction onClick={onReload}>Reload</NoticeAction>
+        <NoticeAction onClick={onReload} disabled={isReloading}>
+          Reload
+        </NoticeAction>
         <NoticeAction onClick={onOverwrite}>Overwrite</NoticeAction>
       </NoticeRow>
     );
   }
   if (saveState.kind === "error") {
-    return <NoticeRow tone="error">{saveState.message}</NoticeRow>;
+    return (
+      <NoticeRow tone="error">
+        Could not save: {saveState.message}
+        <NoticeAction onClick={onRetry}>Retry</NoticeAction>
+      </NoticeRow>
+    );
   }
   if (status.kind === "error") {
     return <NoticeRow tone="error">{status.message}</NoticeRow>;
@@ -733,15 +800,18 @@ function NoticeRow({
 function NoticeAction({
   children,
   onClick,
+  disabled,
 }: {
   children: React.ReactNode;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer rounded-sm font-medium underline underline-offset-2 hover:opacity-80 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+      disabled={disabled}
+      className="cursor-pointer rounded-sm font-medium underline underline-offset-2 hover:opacity-80 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
     >
       {children}
     </button>

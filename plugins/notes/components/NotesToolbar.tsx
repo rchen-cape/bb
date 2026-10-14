@@ -12,7 +12,6 @@ export interface NotesToolbarProps {
   onToggleWordWrap: () => void;
   onInsertToc: () => void;
   onReload: () => void;
-  onSave: () => void;
   isReloading: boolean;
   canEdit: boolean;
 }
@@ -26,11 +25,9 @@ export function NotesToolbar({
   onToggleWordWrap,
   onInsertToc,
   onReload,
-  onSave,
   isReloading,
   canEdit,
 }: NotesToolbarProps) {
-  const isUnsaved = indicator === "dirty" || indicator === "error";
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 border-b border-border/60 bg-surface-raised px-2">
       <ToolbarButton
@@ -43,15 +40,6 @@ export function NotesToolbar({
         {path ?? "No note open"}
       </span>
       <SaveDot indicator={indicator} />
-      {canEdit && isUnsaved ? (
-        <button
-          type="button"
-          onClick={onSave}
-          className="shrink-0 cursor-pointer rounded-sm px-2 py-0.5 text-xs font-medium text-foreground hover:bg-state-hover focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          Save
-        </button>
-      ) : null}
       {canEdit ? (
         <>
           <ToolbarButton
@@ -79,26 +67,27 @@ export function NotesToolbar({
 }
 
 function SaveDot({ indicator }: { indicator: SaveIndicator }) {
-  if (indicator === "clean") {
-    return <span className="size-4 shrink-0" aria-hidden />;
-  }
   const label =
-    indicator === "saving"
-      ? "Saving…"
-      : indicator === "error"
-        ? "Could not save — unsaved changes"
-        : "Unsaved changes";
+    indicator === "clean"
+      ? "All changes saved"
+      : indicator === "saving"
+        ? "Saving…"
+        : indicator === "error"
+          ? "Could not save — unsaved changes"
+          : "Unsaved changes";
   return (
-    <span
-      role="status"
-      aria-label={label}
-      title={label}
-      className={cn(
-        "size-2 shrink-0 rounded-full",
-        indicator === "error" ? "bg-destructive" : "bg-foreground/50",
-        indicator === "saving" && "animate-pulse",
-      )}
-    />
+    <span className="flex size-4 shrink-0 items-center justify-center">
+      <span
+        role="status"
+        aria-label={label}
+        title={label}
+        className={cn(
+          "size-2 rounded-full transition-opacity duration-300",
+          indicator === "error" ? "bg-destructive" : "bg-foreground/40",
+          indicator === "clean" ? "opacity-0" : "opacity-100",
+        )}
+      />
+    </span>
   );
 }
 

@@ -25,10 +25,13 @@ folder and applies regex-driven text decorations to it.
   `highlight.regexes` set, applied on first open with no setup. A
   `.vscode/settings.json` in the notes folder overrides them key by key.
 - **Files and folders:** create, rename, delete, and search from the sidebar,
-  all scoped to the notes folder.
-- **Safe saves:** compare-and-swap on SHA-256, so a note changed on disk offers
-  Reload or Overwrite rather than being clobbered. Unsaved changes are
-  confirmed before navigating away.
+  all scoped to the notes folder. Folders start collapsed and the ones you
+  open stay open the next time the panel opens.
+- **Autosave:** a note saves a second after typing pauses, and right away when
+  the editor loses focus, another note opens, or the panel closes. Saves are
+  compare-and-swap on SHA-256, so a note changed on disk stops autosave and
+  offers Reload or Overwrite rather than being clobbered. Failed saves retry on
+  a backoff.
 - **Table of contents:** fills the `<!-- toc -->` block, numbered when
   `markdown.extension.toc.orderedList` is set.
 - **CLI:** `bb notes list|read|write|new|mkdir|move|remove|settings|root`.
@@ -75,3 +78,5 @@ something this one may depend on existing.
 | `lib/fenced-code.ts`            | Shared fence detection for the TOC and decorations.          |
 | `lib/toc.ts`                    | Heading collection, anchors, TOC block rewriting.            |
 | `lib/notes-tree.ts`             | Tree building, filtering, name validation, route decoding.   |
+| `lib/autosave.ts`               | Debounced compare-and-swap autosave, conflicts, retries.     |
+| `lib/expanded-folders.ts`       | Remembered open folders, pruned and remapped on rename.      |

@@ -389,6 +389,22 @@ export default async function plugin(bb: BbPluginApi) {
     return result;
   }
 
+  async function overwriteNote(relativePath: string, content: string) {
+    const created = await writeNote({
+      path: relativePath,
+      content,
+      expectedSha256: null,
+    });
+    if (created.outcome === "written" || created.currentSha256 === null) {
+      return created;
+    }
+    return writeNote({
+      path: relativePath,
+      content,
+      expectedSha256: created.currentSha256,
+    });
+  }
+
   async function createNote(
     relativePath: string,
   ): Promise<{ path: string; sha256: string }> {
@@ -397,18 +413,6 @@ export default async function plugin(bb: BbPluginApi) {
     }
     const notesRoot = await rootDirectory();
     const absolute = resolveWithinRoot(notesRoot, relativePath);
-    // Writing with `expectedSha256: null` would overwrite an existing note,
-    // so an existing path has to become a refusal rather than silent data
-    // loss.
-    let exists = false;
-    try {
-      await bb.sdk.files.read({ path: absolute, rootPath: notesRoot });
-      exists = true;
-    } catch {
-      exists = false;
-    }
-    if (exists) throw new Error("A note with that name already exists");
-
     const result = await bb.sdk.files.write({
       path: absolute,
       rootPath: notesRoot,
@@ -418,7 +422,7 @@ export default async function plugin(bb: BbPluginApi) {
       expectedSha256: null,
     });
     if (result.outcome !== "written") {
-      throw new Error("Could not create that note");
+      throw new Error("A note with that name already exists");
     }
     return {
       path: relativeToRoot(notesRoot, absolute),
@@ -624,15 +628,11 @@ export default async function plugin(bb: BbPluginApi) {
           if (content === undefined) {
             throw new Error("Missing --content.");
           }
-          const result = await writeNote({
-            path: target,
-            content,
-            expectedSha256: null,
-          });
+          const result = await overwriteNote(target, content);
           if (result.outcome !== "written") {
             return {
               exitCode: 1,
-              stderr: "That note changed on disk; re-read it first\n",
+              stderr: "That note changed on disk while writing; try again\n",
             };
           }
           return { exitCode: 0, stdout: `Wrote ${target}\n` };

@@ -198,25 +198,89 @@ describe("writing notes", () => {
   });
 });
 
+describe("bb notes write", () => {
+  function disk(initialSha256: string | null) {
+    let current = initialSha256;
+    return vi.fn((args: { expectedSha256: string | null }) => {
+      if (args.expectedSha256 !== current) {
+        return { outcome: "conflict", currentSha256: current };
+      }
+      current = "written";
+      return { outcome: "written", sha256: current };
+    });
+  }
+
+  it("overwrites a note that already exists", async () => {
+    const write = disk("original");
+    const { harness } = await setup({ write });
+
+    const result = await harness.runCli([
+      "write",
+      "work/plan.md",
+      "--content",
+      "replaced",
+    ]);
+
+    expect(result).toMatchObject({
+      exitCode: 0,
+      stdout: "Wrote work/plan.md\n",
+    });
+    expect(write).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        content: "replaced",
+        expectedSha256: "original",
+      }),
+    );
+  });
+
+  it("creates a missing note in a single write", async () => {
+    const write = disk(null);
+    const { harness } = await setup({ write });
+
+    const result = await harness.runCli(["write", "new.md", "--content", "hi"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(write).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedSha256: null }),
+    );
+  });
+
+  it("fails rather than clobbering a change made mid-write", async () => {
+    const write = vi.fn(() => ({
+      outcome: "conflict",
+      currentSha256: "moving",
+    }));
+    const { harness } = await setup({ write });
+
+    const result = await harness.runCli(["write", "a.md", "--content", "x"]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toMatch(/changed on disk/);
+    expect(write).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("creating notes", () => {
   it("refuses to clobber an existing note", async () => {
-    const { harness, files } = await setup();
+    const { harness } = await setup({
+      write: vi.fn(() => ({ outcome: "conflict", currentSha256: "original" })),
+    });
     await expect(
       harness.callRpc("createFile", { path: "work/plan.md" }),
     ).rejects.toThrow(/already exists/);
-    expect(files.write).not.toHaveBeenCalled();
   });
 
-  it("creates the note when the path is free", async () => {
-    const { harness, files } = await setup({
-      read: vi.fn(() => {
-        throw new Error("ENOENT");
-      }),
-    });
+  it("creates the note with a create-only write", async () => {
+    const { harness, files } = await setup();
     const result = await harness.callRpc("createFile", { path: "fresh.md" });
     expect(result).toEqual({ path: "fresh.md", sha256: "new" });
     expect(files.write).toHaveBeenCalledWith(
-      expect.objectContaining({ content: "", createParents: true }),
+      expect.objectContaining({
+        content: "",
+        createParents: true,
+        expectedSha256: null,
+      }),
     );
   });
 

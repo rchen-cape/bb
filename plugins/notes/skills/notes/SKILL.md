@@ -143,11 +143,18 @@ fenced code blocks are not listed, and anchors follow GitHub's rules
 
 ## Saving
 
-`Cmd`/`Ctrl` + `S` saves, whether or not the editor itself has focus, and a
-Save button appears while a note has unsaved changes. Saves are
-compare-and-swap on the file's SHA-256: if the note changed on disk since it
-was opened, the panel offers Reload or Overwrite instead of silently winning.
-Opening another note with unsaved changes asks first.
+The panel autosaves: a note is written one second after typing pauses, and
+immediately when the editor loses focus, another note opens, the panel closes,
+or the window is hidden. `Cmd`/`Ctrl` + `S` saves at once, whether or not the
+editor itself has focus. A dot beside the note's path shows unsaved changes.
+
+Saves are compare-and-swap on the file's SHA-256: if the note changed on disk
+since it was last read or saved, autosave stops and the panel offers Reload or
+Overwrite instead of silently winning. Overwrite replaces the version that
+conflicted; if the file changed again since, the conflict is shown again. Any
+other failure shows the error with Retry and retries on its own with
+a backoff. Opening another note while a save is failing asks before discarding
+the unsaved text.
 
 ## Routing
 

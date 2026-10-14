@@ -10,6 +10,12 @@ import {
   parentOf,
   type TreeNode,
 } from "../lib/notes-tree.js";
+import {
+  moveExpandedFolders,
+  readExpandedFolders,
+  retainExistingFolders,
+  storeExpandedFolders,
+} from "../lib/expanded-folders.js";
 
 export type DraftKind = "file" | "directory";
 
@@ -25,9 +31,10 @@ export interface NotesSidebarProps {
   isLoading: boolean;
   error: string | null;
   truncated: boolean;
+  expandedFoldersKey: string;
   onOpen: (path: string) => void;
   onCreate: (kind: DraftKind, path: string) => void;
-  onRename: (from: string, to: string) => void;
+  onRename: (from: string, to: string) => Promise<string | null>;
   onDelete: (node: TreeNode) => void;
 }
 
@@ -37,35 +44,54 @@ export function NotesSidebar({
   isLoading,
   error,
   truncated,
+  expandedFoldersKey,
   onOpen,
   onCreate,
   onRename,
   onDelete,
 }: NotesSidebarProps) {
   const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(() =>
+    readExpandedFolders(expandedFoldersKey),
+  );
   const [draft, setDraft] = useState<Draft | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
 
   const filtered = useMemo(() => filterTree(nodes, query), [nodes, query]);
 
+  useEffect(() => {
+    storeExpandedFolders(expandedFoldersKey, expanded);
+  }, [expanded, expandedFoldersKey]);
+
+  useEffect(() => {
+    if (isLoading || error !== null || truncated) return;
+    setExpanded((current) => retainExistingFolders(current, nodes));
+  }, [error, isLoading, nodes, truncated]);
+
   // Reveal the open note by expanding everything above it.
   useEffect(() => {
     if (activePath === null) return;
-    setCollapsed((current) => {
+    setExpanded((current) => {
       const ancestors = ancestorsOf(activePath);
-      if (!ancestors.some((ancestor) => current.has(ancestor))) return current;
-      const next = new Set(current);
-      for (const ancestor of ancestors) next.delete(ancestor);
-      return next;
+      if (ancestors.every((ancestor) => current.has(ancestor))) return current;
+      return new Set([...current, ...ancestors]);
     });
   }, [activePath]);
 
   const isExpanded = (path: string): boolean =>
-    filtered.expand.has(path) || !collapsed.has(path);
+    filtered.expand.has(path) || expanded.has(path);
+
+  const expand = (path: string): void => {
+    if (path === "") return;
+    setExpanded((current) =>
+      current.has(path) ? current : new Set([...current, path]),
+    );
+  };
 
   const toggle = (path: string): void => {
-    setCollapsed((current) => {
+    const open = isExpanded(path);
+    setExpanded((current) => {
+      if (open !== current.has(path)) return current;
       const next = new Set(current);
       if (next.has(path)) next.delete(path);
       else next.add(path);
@@ -79,11 +105,7 @@ export function NotesSidebar({
     const directory =
       activePath === null ? "" : parentOf(activePath);
     setDraft({ kind, directory });
-    setCollapsed((current) => {
-      const next = new Set(current);
-      next.delete(directory);
-      return next;
-    });
+    expand(directory);
   };
 
   return (
@@ -149,15 +171,24 @@ export function NotesSidebar({
             onCommitRename={(from, name) => {
               setRenaming(null);
               const next = joinPath(parentOf(from), name);
-              if (next !== from) onRename(from, next);
+              if (next === from) return;
+              const openUnder = [...expanded].filter(
+                (path) => path === from || path.startsWith(`${from}/`),
+              );
+              void onRename(from, next).then((moved) => {
+                if (moved === null || openUnder.length === 0) return;
+                setExpanded((current) =>
+                  moveExpandedFolders(
+                    new Set([...current, ...openUnder]),
+                    from,
+                    moved,
+                  ),
+                );
+              });
             }}
             onAddInto={(directory, kind) => {
               setDraft({ kind, directory });
-              setCollapsed((current) => {
-                const next = new Set(current);
-                next.delete(directory);
-                return next;
-              });
+              expand(directory);
             }}
             onCancelDraft={() => setDraft(null)}
             onCommitDraft={(directory, kind, name) => {
