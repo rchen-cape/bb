@@ -260,6 +260,7 @@ const NAV_PANEL_REGISTRATION_KEYS: ReadonlySet<string> = new Set(
     experimental_sidebarAccessory: true,
     headerContent: true,
     experimental_headerBreadcrumb: true,
+    experimental_hideSidebarOnOpen: true,
   } satisfies Record<keyof PluginNavPanelRegistration, true>),
 );
 
@@ -646,6 +647,14 @@ export function collectPluginAppRegistrations(
           );
         }
         if (
+          registration.experimental_hideSidebarOnOpen !== undefined &&
+          typeof registration.experimental_hideSidebarOnOpen !== "boolean"
+        ) {
+          throw new Error(
+            `${kind}: "experimental_hideSidebarOnOpen" must be a boolean when set`,
+          );
+        }
+        if (
           registration.experimental_sidebarAccessory !== undefined &&
           typeof registration.experimental_sidebarAccessory !== "function"
         ) {
@@ -738,6 +747,12 @@ export function collectPluginAppRegistrations(
             ? {
                 experimental_headerBreadcrumb:
                   registration.experimental_headerBreadcrumb,
+              }
+            : {}),
+          ...(registration.experimental_hideSidebarOnOpen !== undefined
+            ? {
+                experimental_hideSidebarOnOpen:
+                  registration.experimental_hideSidebarOnOpen,
               }
             : {}),
         });

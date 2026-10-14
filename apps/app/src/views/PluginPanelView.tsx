@@ -1,4 +1,6 @@
+import { useEffect, useRef } from "react";
 import { PageShell } from "@/components/ui/page-shell.js";
+import { useSidebar } from "@/components/ui/sidebar.js";
 import { EmptyStatePanel } from "@bb/shared-ui/empty-state";
 import { PluginSlotMount } from "@/components/plugin/PluginSlotMount";
 import { usePluginFrontendsSettled } from "@/lib/plugin-frontend-boot-state";
@@ -8,6 +10,16 @@ interface PluginPanelViewProps {
   pluginId: string;
   panelPath: string;
   subPath: string;
+}
+
+function HideSidebarOnOpen() {
+  const { setOpen } = useSidebar();
+  const setOpenRef = useRef(setOpen);
+  setOpenRef.current = setOpen;
+  useEffect(() => {
+    setOpenRef.current(false);
+  }, []);
+  return null;
 }
 
 export function PluginPanelView({
@@ -46,6 +58,9 @@ export function PluginPanelView({
       className="-m-4 flex min-h-0 flex-1 flex-col overflow-hidden md:-m-5"
       data-testid="plugin-panel-body"
     >
+      {panel.experimental_hideSidebarOnOpen === true ? (
+        <HideSidebarOnOpen key={`${panel.pluginId}/${panel.id}`} />
+      ) : null}
       <PluginSlotMount
         key={`${panel.pluginId}/${panel.id}/${panel.generation}`}
         pluginId={panel.pluginId}
