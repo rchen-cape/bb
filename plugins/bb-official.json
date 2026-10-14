@@ -94,6 +94,10 @@
     "category": "agents-and-providers",
     "screenshots": []
   },
+  "ai-hub": {
+    "category": "token-usage-and-limits",
+    "screenshots": []
+  },
   "secrets": {
     "category": "security",
     "screenshots": []

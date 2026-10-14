@@ -140,6 +140,11 @@ export const BUILTIN_PLUGINS = [
     defaultEnabled: true,
   },
   {
+    name: "ai-hub",
+    pluginId: "bb--ai-hub",
+    defaultEnabled: true,
+  },
+  {
     name: "provider-acp",
     pluginId: "provider-acp",
     defaultEnabled: true,
