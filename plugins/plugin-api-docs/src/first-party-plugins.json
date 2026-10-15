@@ -185,11 +185,6 @@
     "icon": "ListView"
   },
   {
-    "id": "trees",
-    "name": "Trees",
-    "icon": "Workflow"
-  },
-  {
     "id": "workflows",
     "name": "Workflows",
     "icon": "Workflow"

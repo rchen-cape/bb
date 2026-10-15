@@ -301,67 +301,6 @@ label-link/name change, active-thread change, or project-prefix change invalidat
 outstanding cursor; restart without `--cursor` instead of accepting a mixed
 snapshot.
 
-The Trees plugin is an opt-in official plugin bundled with the app:
-`bb plugin install trees`. It keeps a project as a dependency graph of atomic
-tasks, where each task waits for the tasks it depends on and each finished task
-passes a compacted summary down. A task is either a note you write as Markdown
-or an agent task that runs in its own thread. It adds the Trees panel and the
-`bb tree` command:
-
-  bb tree ready [--project <project>] [--json]
-  bb tree project list|create|show|rename|delete|reveal [<project>]
-                [--name <name>] [--json]
-  bb tree node list|show|create|update|move|delete [<task>] [--project <project>]
-                [--title <title>] [--kind markdown|agent] [--instruction <text>]
-                [--context-mode all_parents|custom] [--brief <text>]
-                [--depends-on <task>] [--include <task>] [--x <px> --y <px>]
-                [--handoff summary|custom|full]
-                [--workspace scratch|<proj-id>|<env-id>|<absolute path>]
-                [--branch <name>] [--json]
-  bb tree dep add|remove --parent <task> --child <task> [--json]
-  bb tree context <task> [--json]
-  bb tree artifact read|write <task> [--content <text>] [--content-file <path>]
-                [--machine <id-or-name>] [--json]
-  bb tree image add|list <task> [--file <path>] [--machine <id-or-name>] [--json]
-  bb tree open <task> --base-branch <branch> [--message <text>] [--json]
-  bb tree start|resend|handdown|complete|compact|working|ack <task> [--json]
-  bb tree summary <task> --text <summary> [--json]
-  bb tree reopen <task> [--discard-thread] [--json]
-  bb tree layout <project> [--json]
-
-Projects resolve by id or exact name; tasks resolve by id, Markdown file name,
-or exact title, and `--project` narrows the lookup. Each task owns one Markdown
-file under the tree's folder, set by `bb plugin config trees set rootDirectory`.
-A tree belongs to no bb project: each agent task names the project it works in
-with `--workspace` and the branch its worktree is cut from with `--branch`, so
-tasks in one tree can change different repositories. An agent task runs in a
-bb-managed scratch workspace until it names a project, which gives it its own
-worktree off that branch; naming an environment id instead runs the task in that
-exact environment, shared with every other task pointed at it. An absolute path
-resolves to the project that owns it.
-Nothing runs on its own: completing a task makes its children ready, and
-`bb tree context <task>` prints the exact prompt before `bb tree start` sends
-it. Completing a task saves its output, then asks the agent that did the work
-(or a short hidden thread, for a note) for the summary downstream tasks
-receive; a failed compaction still completes the task and reports the problem,
-so write the summary with `bb tree summary`. `--handoff custom` sends the text
-you set with `bb tree summary` and is never overwritten by completion, and
-`--handoff full` sends the whole file and skips compaction altogether.
-`bb tree handdown <task>` pushes the context to the immediate children instead
-of waiting for each to pull it: a child with a thread receives it as a message,
-and one without gets it in the first message when it starts. A note can carry
-images, stored in the tree's `assets/` folder and referenced from its Markdown;
-`--handoff full` is the only mode that sends them: each is uploaded as an
-attachment of the receiving thread's project and the document marks where it
-sat, on start, resend, and handdown alike. A completed task whose inputs
-later change becomes stale: `bb tree reopen` redoes it, `bb tree ack` keeps the
-output, and ack is refused while a parent is still stale. `bb tree working`
-marks a task in progress without spawning a thread, which is what the panel's
-state dropdown uses for a note or a task that already has one. Task file paths in
-`--content-file` resolve on the invoking machine (the thread's machine inside an
-agent thread, otherwise the server's); pass `--machine <id-or-name>` to target
-another enrolled machine.
-
 The builtin Secrets plugin provides a secure credential form and guarded
 dotenv reconciliation:
 

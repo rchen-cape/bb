@@ -48,7 +48,6 @@ const UNPREFIXED_BUNDLED_PLUGIN_IDS = [
   "tasks",
   "theme-preview",
   "thread-list",
-  "trees",
   "workflows",
 ];
 

@@ -272,7 +272,6 @@ describe("builtin plugin reconciliation", () => {
       "docs",
       "memory",
       "tasks",
-      "trees",
       "theme-preview",
     ]);
     for (const name of optionalNames) {
