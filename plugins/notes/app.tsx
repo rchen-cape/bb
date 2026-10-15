@@ -29,6 +29,7 @@ import {
 import { DecorationController } from "./lib/decoration-controller.js";
 import { NoteAutosave, type SaveState } from "./lib/autosave.js";
 import { expandedFoldersStorageKey } from "./lib/expanded-folders.js";
+import { findDailyNotePath } from "./lib/daily-note.js";
 import {
   buildTree,
   decodeSubPath,
@@ -107,6 +108,7 @@ function resolveEditorColorOverrides(): WorkbenchColorOverrides {
     background: resolveCssColor(
       "color-mix(in oklab, var(--ink) 7%, var(--canvas))",
     ),
+    // The same `text-foreground` thread messages use.
     foreground: resolveCssColor("var(--foreground)"),
   };
 }
@@ -119,6 +121,8 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
 
   const codeThemeRef = useRef(codeTheme);
   codeThemeRef.current = codeTheme;
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
 
   // Re-resolved when the mode flips so --canvas/--ink pick up the right
   // light/dark value; cheap, so no need to tie it to anything finer-grained.
@@ -200,6 +204,23 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     void refreshTree();
   }, [refreshTree]);
 
+  // With no note selected (entering the panel, or clicking Notes in the
+  // sidebar while already here), open today's note. A delete sets the skip
+  // flag because it clears the selection before the tree refreshes, and the
+  // stale tree could still list the note that was just removed.
+  const skipDailyNoteRef = useRef(false);
+  useEffect(() => {
+    if (tree.isLoading || activePath !== null) return;
+    if (skipDailyNoteRef.current) {
+      skipDailyNoteRef.current = false;
+      return;
+    }
+    const dailyPath = findDailyNotePath(tree.entries, new Date());
+    if (dailyPath !== null) {
+      navigate.toPluginPanel(PANEL_PATH, { subPath: dailyPath, replace: true });
+    }
+  }, [activePath, navigate, tree.entries, tree.isLoading]);
+
   useEffect(() => {
     let cancelled = false;
     void rpc
@@ -251,6 +272,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     }
     const path = activePath;
     let disposed = false;
+    let linkOpener: MonacoNs.IDisposable | null = null;
     setStatus({ kind: "loading" });
 
     void (async () => {
@@ -308,6 +330,11 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           overflowWidgetsDomNode: overflowWidgetsNode(),
         });
         editorRef.current = editor;
+        // Cmd/Ctrl+click on a detected link opens it the way the rest of bb
+        // opens URLs, instead of Monaco's bare `window.open`.
+        linkOpener = monaco.editor.registerLinkOpener({
+          open: (resource) => navigateRef.current.openUrl(resource.toString(true)),
+        });
         const model = editor.getModel();
         if (model !== null) {
           const autosave: NoteAutosave = new NoteAutosave({
@@ -364,6 +391,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           });
         closingNotes.set(path, closing);
       }
+      linkOpener?.dispose();
       decorationsRef.current?.dispose();
       decorationsRef.current = null;
       editorRef.current?.getModel()?.dispose();
@@ -553,6 +581,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
       });
       if (isWithin(activePathRef.current, node.path)) {
         void detachAutosave()?.close(false);
+        skipDailyNoteRef.current = true;
         navigate.toPluginPanel(PANEL_PATH, { subPath: "" });
       }
       await refreshTree();
@@ -834,6 +863,5 @@ export default definePluginApp((app) => {
     icon: "FileText",
     path: PANEL_PATH,
     component: NotesPanel,
-    experimental_hideSidebarOnOpen: true,
   });
 });

@@ -93,12 +93,27 @@ export const IMPORTED_VSCODE_SETTINGS: NotesSettings = {
           },
         ],
       },
-    "(#PRIORITY\\b)": {
+    // The rest of the line stays bright so priorities stand out against the
+    // softened body text; it stops at a link so the link rule below applies.
+    "(#PRIORITY\\b)((?:(?!https?://)[^\\r\\n])*)": {
       filterLanguageRegex: "markdown",
       decorations: [
         {
           color: "#FF5555",
           fontWeight: "bold",
+        },
+        {
+          color: "#ffffff",
+        },
+      ],
+    },
+    // Bare URLs, dimmed. Skipped after #DONE so a finished item stays
+    // uniformly faded.
+    "(?<!#DONE\\b.*)(https?://[^\\s)]+)": {
+      filterLanguageRegex: "markdown",
+      decorations: [
+        {
+          color: "rgba(255, 255, 255, 0.38)",
         },
       ],
     },

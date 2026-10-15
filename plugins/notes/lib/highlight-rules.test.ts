@@ -27,6 +27,32 @@ describe("imported VS Code highlight rules", () => {
     expect(found).toContainEqual({ text: "#PRIORITY", color: "#FF5555" });
   });
 
+  it("keeps the text after #PRIORITY bright up to a link", () => {
+    const found = highlight([
+      "- #PRIORITY Get reviews https://github.com/org/repo/pull/1 today",
+    ]);
+    expect(found).toContainEqual({ text: " Get reviews ", color: "#ffffff" });
+    expect(found).toContainEqual({
+      text: "https://github.com/org/repo/pull/1",
+      color: "rgba(255, 255, 255, 0.38)",
+    });
+  });
+
+  it("dims links, but not on a #DONE line", () => {
+    const found = highlight([
+      "2. Why test? https://github.com/org/repo/pull/2",
+      "1. #DONE parse https://github.com/org/repo/pull/3",
+    ]);
+    expect(found).toContainEqual({
+      text: "https://github.com/org/repo/pull/2",
+      color: "rgba(255, 255, 255, 0.38)",
+    });
+    expect(found).not.toContainEqual({
+      text: "https://github.com/org/repo/pull/3",
+      color: "rgba(255, 255, 255, 0.38)",
+    });
+  });
+
   it("dims the text after #DONE while keeping the tag green", () => {
     // The rule has two capture groups, and the second decoration must land
     // on the second group rather than on the whole match.

@@ -1763,9 +1763,9 @@ VS Code defaults key by key. `bb notes settings` prints what is in effect. See
 the [notes skill](../plugins/notes/skills/notes/SKILL.md) for the understood
 keys and the `highlight.regexes` format.
 
-### Trees plugin
+### Project Trees plugin
 
-The Trees plugin is an opt-in official plugin: `bb plugin install trees`. It has
+The Project Trees plugin is an opt-in official plugin: `bb plugin install trees`. It has
 one setting, edited under Plugins → Installed plugins or with
 `bb plugin config trees set <key> <value>`:
 

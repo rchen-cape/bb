@@ -9,7 +9,7 @@ import {
 describe("IMPORTED_VSCODE_SETTINGS", () => {
   it("carries every rule from the imported preferences", () => {
     const keys = Object.keys(IMPORTED_VSCODE_SETTINGS["highlight.regexes"] ?? {});
-    expect(keys).toHaveLength(6);
+    expect(keys).toHaveLength(7);
   });
 
   it("keeps ordered TOC on", () => {

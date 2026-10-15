@@ -360,7 +360,7 @@ describe("settings", () => {
     expect(result.overridePath).toBeNull();
     expect(
       Object.keys(result.settings["highlight.regexes"] ?? {}),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
     expect(result.settings["markdown.extension.toc.orderedList"]).toBe(true);
   });
 
@@ -383,7 +383,7 @@ describe("settings", () => {
     // The override said nothing about highlighting, so the import survives.
     expect(
       Object.keys(result.settings["highlight.regexes"] ?? {}),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
   });
 
   it("ignores a malformed override instead of failing the panel", async () => {

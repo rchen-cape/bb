@@ -186,9 +186,9 @@ it("pages mobile panes without using annotation selection as navigation", () => 
       "Automations",
       "Docs",
       "GitHub",
+      "Project Trees",
       "Tasks",
       "Theme Preview",
-      "Trees",
     ]) {
       expect(examples().textContent).toContain(name);
       expect(
@@ -196,7 +196,7 @@ it("pages mobile panes without using annotation selection as navigation", () => 
           '[aria-live="polite"] > span:not(.sr-only)',
         ),
       ).toHaveLength(1);
-      if (name !== "Trees") act(() => nextExample().click());
+      if (name !== "Theme Preview") act(() => nextExample().click());
     }
     expect(nextExample().disabled).toBe(true);
     act(() =>
@@ -204,7 +204,7 @@ it("pages mobile panes without using annotation selection as navigation", () => 
         new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }),
       ),
     );
-    expect(examples().textContent).toContain("Theme Preview");
+    expect(examples().textContent).toContain("Tasks");
     expect(visiblePage()).toBe("Sidebar");
     expect(navigate).not.toHaveBeenCalled();
     act(() =>

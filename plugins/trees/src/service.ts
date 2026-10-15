@@ -704,7 +704,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
         await bb.sdk.threads.stop({ threadId: worker.id });
       } catch (error) {
         bb.log.warn(
-          `Trees could not release its summarizer thread: ${errorText(error)}`,
+          `Project Trees could not release its summarizer thread: ${errorText(error)}`,
         );
       }
     }
@@ -827,7 +827,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
       });
     } catch (error) {
       bb.log.warn(
-        `Trees could not serve the images in ${project.directory}: ${errorText(error)}`,
+        `Project Trees could not serve the images in ${project.directory}: ${errorText(error)}`,
       );
       return null;
     }
@@ -838,7 +838,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
    * refer to them, which is the order the text's markers give.
    *
    * An image is uploaded as an attachment of the thread's own project rather
-   * than pointed at where it sits in the Trees folder. A path outside the
+   * than pointed at where it sits in the Project Trees folder. A path outside the
    * workspace is passed through to the agent's runtime untouched, which then
    * has to be able to read it — a different machine, or a sandbox, and the
    * picture silently never arrives. An attachment is bytes bb already holds.
@@ -863,7 +863,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
     const name = path.split("/").at(-1) ?? path;
     const mimeType = imageMimeType(name);
     if (mimeType === null) {
-      throw new TreeError(`${name} is not an image Trees can send.`);
+      throw new TreeError(`${name} is not an image Project Trees can send.`);
     }
     try {
       const file = await bb.sdk.files.read({ path });
@@ -1034,7 +1034,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
       });
       if (listProjectRows(db).length >= MAX_PROJECTS) {
         throw new TreeError(
-          `Trees holds at most ${MAX_PROJECTS} projects. Delete one before adding another.`,
+          `Project Trees holds at most ${MAX_PROJECTS} projects. Delete one before adding another.`,
         );
       }
       const rootDirectory = await deps.resolveRootDirectory();
@@ -1179,7 +1179,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
           });
         } catch (error) {
           bb.log.info(
-            `Trees kept the file already at ${created.artifactFile}: ${errorText(error)}`,
+            `Project Trees kept the file already at ${created.artifactFile}: ${errorText(error)}`,
           );
         }
       }
@@ -1404,7 +1404,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
       const mimeType = imageMimeType(args.fileName);
       if (mimeType === null) {
         throw new TreeError(
-          `${args.fileName} is not an image Trees can store. Use PNG, JPEG, GIF, WebP, AVIF, HEIC, BMP, or TIFF.`,
+          `${args.fileName} is not an image Project Trees can store. Use PNG, JPEG, GIF, WebP, AVIF, HEIC, BMP, or TIFF.`,
         );
       }
       const bytes = Buffer.from(args.contentBase64, "base64");
@@ -1697,7 +1697,7 @@ export function createTreeService(deps: TreeServiceDeps): TreeService {
           });
         } catch (error) {
           const problem = errorText(error);
-          bb.log.warn(`Trees could not compact ${node.title}: ${problem}`);
+          bb.log.warn(`Project Trees could not compact ${node.title}: ${problem}`);
           updateNodeRow(db, {
             nodeId: node.id,
             now: Date.now(),

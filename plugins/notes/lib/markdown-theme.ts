@@ -201,6 +201,10 @@ function baseTokenRules(
       });
     }
   }
+  // Themes often ship a scope-less rule with their own default text colour;
+  // Monaco takes the last `""` rule, so the override goes after it.
+  const override = normalizeTokenColor(overrides?.foreground);
+  if (override !== undefined) rules.push({ token: "", foreground: override });
   return rules;
 }
 

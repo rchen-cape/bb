@@ -301,11 +301,11 @@ label-link/name change, active-thread change, or project-prefix change invalidat
 outstanding cursor; restart without `--cursor` instead of accepting a mixed
 snapshot.
 
-The Trees plugin is an opt-in official plugin bundled with the app:
+The Project Trees plugin is an opt-in official plugin bundled with the app:
 `bb plugin install trees`. It keeps a project as a dependency graph of atomic
 tasks, where each task waits for the tasks it depends on and each finished task
 passes a compacted summary down. A task is either a note you write as Markdown
-or an agent task that runs in its own thread. It adds the Trees panel and the
+or an agent task that runs in its own thread. It adds the Project Trees panel and the
 `bb tree` command:
 
   bb tree ready [--project <project>] [--json]
