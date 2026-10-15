@@ -22,7 +22,7 @@ export function acquirePierreWorkerPool(
   registerResolvedCodeThemeFiles(registerCustomTheme);
   return getOrCreateWorkerPoolSingleton({
     poolOptions: WORKER_POOL_OPTIONS,
-    highlighterOptions: { theme },
+    highlighterOptions: { theme, preferredHighlighter: "shiki-wasm" },
   });
 }
 

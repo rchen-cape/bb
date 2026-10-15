@@ -57,4 +57,18 @@ describe("acquirePierreWorkerPool", () => {
     expect(acquirePierreWorkerPool(theme)).toBe(pool);
     await expect(resolution).resolves.toMatchObject({ name: theme.dark });
   });
+
+  it("requests the WASM regex engine, which the JavaScript engine's Go grammar hang does not affect", () => {
+    worker.getOrCreate.mockReturnValue({});
+
+    acquirePierreWorkerPool(defaultResolvedCodeTheme);
+
+    expect(worker.getOrCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        highlighterOptions: expect.objectContaining({
+          preferredHighlighter: "shiki-wasm",
+        }),
+      }),
+    );
+  });
 });
