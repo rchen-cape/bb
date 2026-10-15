@@ -135,11 +135,6 @@
     "icon": "Laptop"
   },
   {
-    "id": "trees",
-    "name": "Project Trees",
-    "icon": "Workflow"
-  },
-  {
     "id": "provider-retry",
     "name": "Provider retry",
     "icon": "ArrowReloadHorizontal"
