@@ -1007,6 +1007,16 @@ body.sidebar-resizing [data-sidebar="panel"] {
   transition-duration: 0ms !important;
 }
 
+[data-sidebar-instant]
+  :is(
+    [data-sidebar="gap"],
+    [data-sidebar="panel"],
+    [data-sidebar="collapsible-body"],
+    [data-sidebar="inset"]
+  ) {
+  transition: none !important;
+}
+
 /*
  * Radix portals paint outside the pane tree, but Electron resolves native
  * window-drag regions separately from ordinary CSS stacking. Explicitly carve

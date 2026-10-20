@@ -9,6 +9,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { defaultAppSettings } from "@bb/domain";
+import { createStore, Provider as JotaiProvider } from "jotai";
 import { Popover, PopoverContent, PopoverTrigger } from "@bb/shared-ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@bb/shared-ui/tooltip";
 import { createPortal } from "react-dom";
@@ -21,10 +22,17 @@ import { makePluginRegistrationSet } from "@/test/fixtures/plugins";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { Link, MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppCommandProvider } from "@/components/commands/AppCommandProvider";
+import {
+  AppCommandProvider,
+  useAppCommandRunner,
+} from "@/components/commands/AppCommandProvider";
 import { AppLayout } from "./AppLayout";
 import { CompactViewportOverrideProvider } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { setCompactSecondaryPanelPresentation } from "@/components/ui/secondary-panel-shelf-visibility";
+import { useSidebar } from "@/components/ui/sidebar";
+import { splitPane, type PaneContent } from "@/lib/split-layout";
+import { splitLayoutAtom } from "@/lib/split-layout/atoms";
+import { createSinglePaneLayout } from "@/views/thread-detail/splitThreadNavigation";
 
 const useThreadDetailBootstrapMock = vi.hoisted(() =>
   vi.fn(
@@ -452,6 +460,189 @@ describe("AppLayout sidebar state is scoped to this tab", () => {
     dispatchCrossTabWrite(SIDEBAR_WIDTH_STORAGE_KEY, "420");
 
     expect(widthVar(gap)).toBe("320px");
+  });
+});
+
+describe("AppLayout shows the thread list only on Home", () => {
+  const PLUGIN_PANEL_ROUTE = "/plugins/garden/docs";
+  const DOCS_PANE: PaneContent = {
+    kind: "plugin-panel",
+    pluginId: "garden",
+    panelPath: "docs",
+    subPath: "",
+  };
+
+  beforeEach(() => {
+    setPluginSlotRegistrations(
+      "garden",
+      makePluginRegistrationSet({
+        navPanels: [
+          {
+            id: "docs",
+            title: "Docs",
+            icon: "BookOpen",
+            path: "docs",
+            component: () => null,
+          },
+        ],
+      }),
+    );
+  });
+
+  function sidebarState() {
+    const gap = document.querySelector('[data-sidebar="gap"]');
+    if (!gap?.parentElement) throw new Error("missing sidebar");
+    return gap.parentElement.getAttribute("data-state");
+  }
+
+  function queryToggle() {
+    return screen.queryByRole("button", { name: /^Toggle sidebar/ });
+  }
+
+  function RailOnlyControls({
+    onToggleCommand,
+  }: {
+    onToggleCommand: (handled: boolean) => void;
+  }) {
+    const runner = useAppCommandRunner();
+    const { setOpen } = useSidebar();
+    return (
+      <>
+        <Link to="/">Home</Link>
+        <Link to={PLUGIN_PANEL_ROUTE}>Docs</Link>
+        <button type="button" onClick={() => setOpen(false)}>
+          Request collapse
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            onToggleCommand(runner.dispatch("sidebar.toggle", null))
+          }
+        >
+          Run sidebar toggle
+        </button>
+      </>
+    );
+  }
+
+  function renderRailOnlyLayout(
+    initialPath: string,
+    store = createStore(),
+    onToggleCommand: (handled: boolean) => void = () => {},
+  ) {
+    return render(
+      <JotaiProvider store={store}>
+        <MemoryRouter initialEntries={[initialPath]}>
+          <AppCommandProvider>
+            <AppLayout>
+              <RailOnlyControls onToggleCommand={onToggleCommand} />
+            </AppLayout>
+          </AppCommandProvider>
+        </MemoryRouter>
+      </JotaiProvider>,
+    );
+  }
+
+  it("shows only the rail on a plugin page and reopens the sidebar on Home", () => {
+    renderRailOnlyLayout("/");
+    expect(sidebarState()).toBe("expanded");
+
+    fireEvent.click(screen.getByRole("link", { name: "Docs" }));
+    expect(sidebarState()).toBe("collapsed");
+    expect(queryToggle()).toBeNull();
+
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+    expect(sidebarState()).toBe("expanded");
+    expect(queryToggle()?.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("swaps the sidebar between Home and a plugin page without animating", () => {
+    let frameCallbacks: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
+      frameCallbacks.push(cb);
+      return frameCallbacks.length;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    function flushFrames() {
+      for (let frame = 0; frame < 2; frame += 1) {
+        const callbacks = frameCallbacks;
+        frameCallbacks = [];
+        act(() => {
+          for (const callback of callbacks) callback(0);
+        });
+      }
+    }
+    const isInstant = () => getRoot().hasAttribute("data-sidebar-instant");
+    renderRailOnlyLayout("/");
+
+    fireEvent.click(screen.getByRole("link", { name: "Docs" }));
+    expect(sidebarState()).toBe("collapsed");
+    expect(isInstant()).toBe(true);
+    flushFrames();
+    expect(isInstant()).toBe(false);
+
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+    expect(sidebarState()).toBe("expanded");
+    expect(isInstant()).toBe(true);
+    flushFrames();
+    expect(isInstant()).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Toggle sidebar/ }));
+    expect(sidebarState()).toBe("collapsed");
+    expect(isInstant()).toBe(false);
+  });
+
+  it("keeps a sidebar collapsed on Home collapsed after a plugin page", () => {
+    renderRailOnlyLayout("/");
+    fireEvent.click(screen.getByRole("button", { name: /^Toggle sidebar/ }));
+    expect(sidebarState()).toBe("collapsed");
+
+    fireEvent.click(screen.getByRole("link", { name: "Docs" }));
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+
+    expect(sidebarState()).toBe("collapsed");
+    expect(queryToggle()?.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("ignores sidebar toggles and collapse requests on a plugin page", () => {
+    const toggleResults: boolean[] = [];
+    renderRailOnlyLayout("/", createStore(), (handled) =>
+      toggleResults.push(handled),
+    );
+    fireEvent.click(screen.getByRole("link", { name: "Docs" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Run sidebar toggle" }));
+    fireEvent.click(screen.getByRole("button", { name: "Request collapse" }));
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+
+    expect(toggleResults).toEqual([false]);
+    expect(sidebarState()).toBe("expanded");
+  });
+
+  it("keeps the thread list for a plugin page split beside a thread", () => {
+    const store = createStore();
+    const thread = createSinglePaneLayout({
+      projectId: "proj_one",
+      threadId: "thr_one",
+    });
+    store.set(
+      splitLayoutAtom,
+      splitPane(thread, thread.focusedPaneId, "right", DOCS_PANE),
+    );
+
+    renderRailOnlyLayout(PLUGIN_PANEL_ROUTE, store);
+
+    expect(sidebarState()).toBe("expanded");
+    expect(queryToggle()).not.toBeNull();
+  });
+
+  it("keeps the thread list on an unavailable plugin page", () => {
+    resetPluginSlotStoreForTest();
+
+    renderRailOnlyLayout(PLUGIN_PANEL_ROUTE);
+
+    expect(sidebarState()).toBe("expanded");
+    expect(queryToggle()).not.toBeNull();
   });
 });
 

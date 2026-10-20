@@ -693,6 +693,9 @@ export interface PluginNavPanelRegistration {
    * When true, the host collapses the app sidebar each time the user opens
    * this panel from elsewhere. The user can reopen it with the sidebar
    * controls; moving between sub-paths of the panel does not collapse it again.
+   * On wide windows a panel with no thread beside it already shows only the
+   * rail, so there this only matters when the panel opens beside a thread. On
+   * compact viewports it saves the wide-window sidebar as collapsed.
    *
    * Experimental: see docs/api_to_audit.md.
    */

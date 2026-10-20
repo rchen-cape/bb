@@ -126,10 +126,13 @@ destinations (Plugins, Skills, and plugin panels) follow; More holds hidden
 destinations and Customize rail; Settings is at the bottom. New thread sits in
 the sidebar header and cannot be hidden. The list beside the rail swaps between the thread list,
 Plugins, Skills, and Settings, and collapsing the sidebar hides that list and
-leaves the rail. Rail order and visibility are `bb settings ui` keys
+leaves the rail. The thread list belongs to Home: on wide windows a plugin page
+shows only the rail unless a thread is open beside it in a split, and Home
+restores the sidebar as it was. Rail order and visibility are `bb settings ui` keys
 (`sidebar.pluginPanelOrder`, `sidebar.visiblePluginPanels`). In the macOS
 desktop app, wide windows add a title bar holding the window controls, Back
-and Forward, and the sidebar toggle; it shares the rail's background, and the
+and Forward, and the sidebar toggle (left out on a plugin page that shows only
+the rail); it shares the rail's background, and the
 sidebar and page sit in a card below it. On narrow windows and phones the rail
 sits inside the drawer: Home, Plugins, Skills, and Settings swap the list
 beside it and leave the drawer open, and a plugin page closes it.

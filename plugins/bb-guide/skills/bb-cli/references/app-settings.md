@@ -250,11 +250,15 @@ hide the navigation rail's destinations (see Navigation rail below).
   the rail swaps between the thread list, Plugins, Skills, and Settings.
 - Collapsing the sidebar hides the list beside the rail and leaves the rail in
   place.
+- The thread list belongs to Home. On wide windows a plugin page shows only the
+  rail unless a thread is open beside it in a split, and Home restores the
+  sidebar as it was. The `sidebar.toggle` shortcut does nothing there.
 - `sidebar.pluginPanelOrder` and `sidebar.visiblePluginPanels` order and show
   or hide rail destinations.
 - In the macOS desktop app, wide windows add a title bar that holds the window
-  controls, Back and Forward, and the sidebar toggle. It shares the rail's
-  background, and the sidebar and page sit in a card below it.
+  controls, Back and Forward, and the sidebar toggle (left out on a plugin page
+  that shows only the rail). It shares the rail's background, and the sidebar
+  and page sit in a card below it.
 - On narrow windows and phones the rail sits inside the drawer. Home, Plugins,
   Skills, and Settings swap the list beside it and leave the drawer open; a
   plugin page closes it.

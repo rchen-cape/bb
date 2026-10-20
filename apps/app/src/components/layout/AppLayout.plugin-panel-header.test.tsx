@@ -184,14 +184,20 @@ vi.mock("@/hooks/queries/thread-queries", () => ({
   useThreadPendingInteractions: () => ({ data: undefined }),
 }));
 
-function renderPluginPanelRoute(): void {
+const PLUGIN_PANEL_ROUTE = "/plugins/helm-wiki/wiki";
+
+function renderRoute(route: string): void {
   render(
-    <MemoryRouter initialEntries={["/plugins/helm-wiki/wiki"]}>
+    <MemoryRouter initialEntries={[route]}>
       <AppLayout>
-        <div>Plugin panel body</div>
+        <div>Page body</div>
       </AppLayout>
     </MemoryRouter>,
   );
+}
+
+function renderPluginPanelRoute(): void {
+  renderRoute(PLUGIN_PANEL_ROUTE);
 }
 
 function isHiddenByCompactShelf(element: HTMLElement): boolean {
@@ -272,7 +278,7 @@ describe("AppLayout plugin panel header", () => {
   });
 
   it("keeps the fixed left trigger visible on wide viewports while a compact panel is showing", () => {
-    renderPluginPanelRoute();
+    renderRoute("/");
 
     act(() => setCompactSecondaryPanelPresentation("full"));
     expect(
@@ -282,7 +288,7 @@ describe("AppLayout plugin panel header", () => {
 
   it("moves the trigger and history controls into a window title bar beside the macOS rail", () => {
     viewportState.macosChrome = true;
-    renderPluginPanelRoute();
+    renderRoute("/");
 
     const titleBar = screen.getByTestId("app-window-title-bar");
     expect(screen.getByTestId("app-layout-root").dataset.framed).toBe("");
@@ -295,6 +301,29 @@ describe("AppLayout plugin panel header", () => {
       titleBar.contains(screen.getByRole("button", { name: "Go back" })),
     ).toBe(true);
     expect(screen.queryByTestId("app-desktop-sidebar-trigger")).toBeNull();
+  });
+
+  it("drops the sidebar toggle on a wide web plugin page that shows only the rail", () => {
+    renderPluginPanelRoute();
+
+    expect(screen.queryByTestId("app-sidebar-trigger-overlay")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Toggle sidebar/ }),
+    ).toBeNull();
+  });
+
+  it("keeps history controls but no sidebar toggle in the macOS title bar on a plugin page", () => {
+    viewportState.macosChrome = true;
+    renderPluginPanelRoute();
+
+    expect(
+      screen
+        .getByTestId("app-window-title-bar")
+        .contains(screen.getByRole("button", { name: "Go back" })),
+    ).toBe(true);
+    expect(
+      screen.queryByRole("button", { name: /^Toggle sidebar/ }),
+    ).toBeNull();
   });
 
   it("adds the right panel toggle to the macOS title bar row only while a page has a right panel", () => {
@@ -338,7 +367,7 @@ describe("AppLayout plugin panel header", () => {
       return null;
     }
     render(
-      <MemoryRouter initialEntries={["/plugins/helm-wiki/wiki"]}>
+      <MemoryRouter initialEntries={["/"]}>
         <AppLayout>
           <RightPanelPage />
         </AppLayout>

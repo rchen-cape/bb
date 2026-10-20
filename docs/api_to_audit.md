@@ -1853,12 +1853,21 @@ open-state setter the `sidebar.toggle` command and the sidebar trigger use.
 Navigating between sub-paths of the same panel does not collapse it again, so
 a user who reopens the sidebar keeps it open.
 
+On wide windows the host now shows only the rail on every available plugin
+panel page whose panes hold no thread or new thread, without saving that
+state, and ignores sidebar open-state changes there. On a full-page panel the
+flag therefore changes nothing on wide windows; it only collapses the sidebar
+when the panel opens beside a thread in a split. On compact viewports it leaves
+the drawer alone but saves the wide-window sidebar as collapsed.
+
 **Audit before stabilizing.**
 
 1. **Compact viewports.** Confirm collapsing is right (or a no-op) where the
    sidebar is a drawer.
-2. **Persistence.** The collapsed state persists like any manual collapse.
-   Decide whether the sidebar should be restored when the user leaves the panel.
+2. **Persistence.** The flag's collapse beside a thread persists like any
+   manual collapse, while the host's rail-only plugin pages are restored on
+   Home. Decide whether the flag is still needed, or should follow the host
+   and restore the sidebar when the user leaves the panel.
 3. **Shape.** Decide whether a boolean is enough or a broader layout hint
    (for example a preferred sidebar state) is warranted.
 
@@ -3283,7 +3292,8 @@ mount a frame apart during a scroll step arrive in one change. A surface
 counts only while it is visible: the app sidebar wraps the thread list in
 `ThreadActionSurfaceVisibility`, visible when its body is shown and the
 sidebar (or the compact drawer) is open, so a hidden sidebar on a settings
-route contributes no ids even if a plugin list mounts rows. It lives in
+route, or a sidebar showing only the rail on a plugin page, contributes no ids
+even if a plugin list mounts rows. It lives in
 its own store read only by the collectors, so a change re-renders one
 collector per registration, never the rows. Registrations without per-thread
 state ignore it. This is the recommended pattern for per-thread data until an

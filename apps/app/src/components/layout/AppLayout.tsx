@@ -104,6 +104,7 @@ import { dispatchBrowserViewBoundsSync } from "@/lib/browser-view-bounds-sync";
 import { useFaviconBadge } from "@/lib/favicon-color-preference";
 import { shouldShowFaviconAttentionDot } from "./faviconAttentionDot";
 import { AppLayoutSidebar } from "./AppLayoutSidebar";
+import { useIsSidebarRailOnly } from "./sidebarRailOnly";
 import { WindowRightPanelToggle } from "./WindowRightPanelToggle";
 import { NAV_RAIL_COLLAPSED_SIDEBAR_WIDTH } from "@/components/sidebar/navRailWidth";
 import { SidebarHistoryNavigationControls } from "@/components/sidebar/SidebarHistoryNavigationControls";
@@ -179,34 +180,62 @@ const sidebarOpenAtom = atomWithStorage<boolean>(
 
 interface SidebarStateBridgeProps {
   framed: boolean;
+  railOnly: boolean;
   children: ReactNode;
 }
 
 type SidebarResizeMouseEvent = ReactMouseEvent<HTMLDivElement>;
 type SidebarOpenChangeHandler = (open: boolean) => void;
 
-function SidebarStateBridge({ framed, children }: SidebarStateBridgeProps) {
+function SidebarStateBridge({
+  framed,
+  railOnly,
+  children,
+}: SidebarStateBridgeProps) {
   const [open, setOpen] = useAtom(sidebarOpenAtom);
   const sidebarWidth = useAtomValue(sidebarWidthAtom);
   const sidebarLiveWidth = useAtomValue(sidebarLiveWidthAtom);
   const handleOpenChange = useCallback<SidebarOpenChangeHandler>(
     (nextOpen) => {
+      if (railOnly) return;
       setOpen(nextOpen);
       window.requestAnimationFrame(dispatchBrowserViewBoundsSync);
     },
-    [setOpen],
+    [railOnly, setOpen],
   );
-  useAppCommandHandler("sidebar.toggle", () => {
-    handleOpenChange(!open);
-    return true;
+  useAppCommandHandler(
+    "sidebar.toggle",
+    () => {
+      handleOpenChange(!open);
+      return true;
+    },
+    0,
+    !railOnly,
+  );
+  const [railOnlySwap, setRailOnlySwap] = useState({
+    railOnly,
+    settling: false,
   });
+  if (railOnlySwap.railOnly !== railOnly) {
+    setRailOnlySwap({ railOnly, settling: true });
+  }
+  useEffect(() => {
+    if (!railOnlySwap.settling) return;
+    let frame = window.requestAnimationFrame(() => {
+      frame = window.requestAnimationFrame(() => {
+        setRailOnlySwap((current) => ({ ...current, settling: false }));
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [railOnlySwap]);
   return (
     <SidebarProvider
       width={`${sidebarLiveWidth ?? sidebarWidth}px`}
       collapsedRailWidth={NAV_RAIL_COLLAPSED_SIDEBAR_WIDTH}
       framed={framed}
       data-testid="app-layout-root"
-      open={open}
+      data-sidebar-instant={railOnlySwap.settling ? "" : undefined}
+      open={open && !railOnly}
       onOpenChange={handleOpenChange}
     >
       {children}
@@ -224,11 +253,13 @@ const MACOS_SIDEBAR_TRIGGER_TRANSITION_CLASS =
 interface SidebarTriggerOverlayProps {
   reserveMacosTrafficLights: boolean;
   usesDesktopChrome: boolean;
+  railOnly: boolean;
 }
 
 function SidebarTriggerOverlay({
   reserveMacosTrafficLights,
   usesDesktopChrome,
+  railOnly,
 }: SidebarTriggerOverlayProps) {
   const isCompactViewport = useIsCompactViewport();
   const { openMobile } = useSidebar();
@@ -265,13 +296,15 @@ function SidebarTriggerOverlay({
           )}
         >
           <SidebarHistoryNavigationControls />
-          <div className="relative flex items-center">
-            <SidebarTrigger {...triggerProps} />
-            <AppCommandShortcutHint
-              shortcut={shortcut}
-              className="absolute left-full ml-1"
-            />
-          </div>
+          {railOnly ? null : (
+            <div className="relative flex items-center">
+              <SidebarTrigger {...triggerProps} />
+              <AppCommandShortcutHint
+                shortcut={shortcut}
+                className="absolute left-full ml-1"
+              />
+            </div>
+          )}
         </div>
         <WindowRightPanelToggle
           className={cn("ml-auto", MACOS_CHROME_CONTROL_NO_DRAG_CLASS)}
@@ -279,6 +312,7 @@ function SidebarTriggerOverlay({
       </div>
     );
   }
+  if (railOnly) return null;
   if (usesDesktopChrome) {
     return (
       <div
@@ -559,6 +593,10 @@ export function AppLayout({ children }: AppLayoutProps) {
   const pluginPanel = pluginPanelEntry?.panel ?? undefined;
   const pluginPanelChrome = pluginPanelEntry?.chrome;
   const pluginPanelSubPath = pluginPanelMatch?.params["*"] ?? "";
+  const isSidebarRailOnly = useIsSidebarRailOnly(
+    location.pathname,
+    pluginPanelEntry !== undefined,
+  );
   const sidebarNavigationQuery = useSidebarNavigation();
   const projects = useMemo(
     () => sidebarNavigationQuery.data?.projects.map(stripProjectThreads),
@@ -824,7 +862,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       <ProjectActionsProvider>
         <ThreadTitleMentionResourcesProvider {...titleMentionResources}>
           <ThreadActionsProvider>
-            <SidebarStateBridge framed={usesDesktopChrome}>
+            <SidebarStateBridge
+              framed={usesDesktopChrome}
+              railOnly={isSidebarRailOnly}
+            >
               {backToAppRoutePath !== null && !isSidebarResizing ? (
                 <BackToAppCommandHandler routePath={backToAppRoutePath} />
               ) : null}
@@ -870,6 +911,7 @@ export function AppLayout({ children }: AppLayoutProps) {
               <SidebarTriggerOverlay
                 reserveMacosTrafficLights={reserveMacosTrafficLights}
                 usesDesktopChrome={usesDesktopChrome}
+                railOnly={isSidebarRailOnly}
               />
             </SidebarStateBridge>
             <PluginAppOverlays />
