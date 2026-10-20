@@ -118,7 +118,10 @@ class FakeDesktopWindow implements DesktopBrowserWindow {
   public readonly options: BrowserWindowConstructorOptions;
   public readonly webContents: FakeDesktopWindowWebContents;
   public backgroundColor: string;
+  public closeCount = 0;
+  public focusCount = 0;
   public fullScreen = false;
+  public loadError: Error | null = null;
   public maximized = false;
   public minimized = false;
   public shown = false;
@@ -158,7 +161,14 @@ class FakeDesktopWindow implements DesktopBrowserWindow {
     this.readyToShowListener?.();
   }
 
-  focus(): void {}
+  close(): void {
+    this.closeCount += 1;
+    this.emitClosed();
+  }
+
+  focus(): void {
+    this.focusCount += 1;
+  }
 
   getBounds(): WindowBounds {
     return this.bounds;
@@ -182,6 +192,9 @@ class FakeDesktopWindow implements DesktopBrowserWindow {
 
   async loadURL(url: string): Promise<void> {
     this.loadedUrls.push(url);
+    if (this.loadError !== null) {
+      throw this.loadError;
+    }
   }
 
   maximize(): void {
@@ -481,6 +494,179 @@ describe("desktop window factory", () => {
       }
     },
   );
+});
+
+describe("desktop pop-out windows", () => {
+  const appUrl = "http://127.0.0.1:38886";
+  const popoutUrl = `${appUrl}/plugins/notes/notes?bbWindow=popout`;
+  const popoutBounds = { height: 800, width: 960, x: 252, y: 82 };
+
+  async function waitForPendingWindowStateWrites(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  it("opens at the requested bounds and URL with the standard window setup", async () => {
+    const openedExternalUrls: string[] = [];
+    const { createdWindows, factory } = await createFactoryHarness({
+      openExternalUrl({ url }) {
+        openedExternalUrls.push(url);
+      },
+    });
+
+    await factory.createWindow({ initialUrl: appUrl, stateKey: null });
+    const popout = await factory.createPopoutWindow({
+      bounds: popoutBounds,
+      url: popoutUrl,
+    });
+    const [standard, popoutWindow] = createdWindows;
+    if (!standard || !popoutWindow) throw new Error("Expected two windows");
+
+    expect(popout).toBe(popoutWindow);
+    expect(popoutWindow.getBounds()).toEqual(popoutBounds);
+    expect({ ...popoutWindow.options, ...popoutBounds }).toEqual({
+      ...standard.options,
+      ...popoutBounds,
+    });
+    expect(popoutWindow.loadedUrls).toEqual([popoutUrl]);
+    expect(popoutWindow.webContents.zoomFactors).toEqual([1]);
+    expect(popoutWindow.webContents.spellCheckerEnabledValues).toEqual([true]);
+    for (const listener of popoutWindow.webContents.themeColorListeners) {
+      listener(new Event("did-change-theme-color"), "#29344a");
+    }
+    expect(popoutWindow.backgroundColor).toBe("#29344a");
+    expect(popoutWindow.shown).toBe(false);
+    popoutWindow.emitReadyToShow();
+    expect(popoutWindow.shown).toBe(true);
+
+    const handler = popoutWindow.webContents.windowOpenHandler;
+    if (!handler) throw new Error("Expected window open handler");
+    expect(handler({ url: "https://bb.invalid/docs" })).toEqual({
+      action: "deny",
+    });
+    expect(handler({ url: "javascript:alert(1)" })).toEqual({
+      action: "deny",
+    });
+    expect(openedExternalUrls).toEqual(["https://bb.invalid/docs"]);
+    expect(createdWindows).toHaveLength(2);
+  });
+
+  it("never saves pop-outs or lets them take the main window state", async () => {
+    const generatedStateKeys: WindowStateKey[] = ["window-second"];
+    const { factory, userDataPath } = await createFactoryHarness({
+      createWindowStateKey() {
+        return generatedStateKeys.shift() ?? "window-fallback";
+      },
+    });
+
+    const popout = await factory.createPopoutWindow({
+      bounds: popoutBounds,
+      url: popoutUrl,
+    });
+    await factory.createWindow({ initialUrl: appUrl, stateKey: null });
+    await factory.persistOpenWindows();
+    const savedEntries = await readPersistedWindowStateEntries({
+      userDataPath,
+    });
+    expect(savedEntries.map((entry) => entry.stateKey)).toEqual(["main"]);
+
+    popout.close();
+    expect(factory.hasPopoutWindows()).toBe(false);
+    await waitForPendingWindowStateWrites();
+    await expect(
+      readPersistedWindowStateEntries({ userDataPath }),
+    ).resolves.toEqual(savedEntries);
+
+    await factory.createWindow({ initialUrl: appUrl, stateKey: null });
+    await factory.persistOpenWindows();
+    const nextEntries = await readPersistedWindowStateEntries({
+      userDataPath,
+    });
+    expect(nextEntries.map((entry) => entry.stateKey)).toEqual([
+      "main",
+      "window-second",
+    ]);
+  });
+
+  it("closes pop-outs when every window loads a new URL", async () => {
+    const nextUrl = "http://127.0.0.1:40000";
+    const { factory } = await createFactoryHarness();
+    const standard = await factory.createWindow({
+      initialUrl: appUrl,
+      stateKey: null,
+    });
+    const popout = await factory.createPopoutWindow({
+      bounds: popoutBounds,
+      url: popoutUrl,
+    });
+    if (
+      !(standard instanceof FakeDesktopWindow) ||
+      !(popout instanceof FakeDesktopWindow)
+    ) {
+      throw new Error("Expected fake windows");
+    }
+
+    await factory.loadUrl({ url: nextUrl });
+    expect(popout.closeCount).toBe(1);
+    expect(popout.loadedUrls).toEqual([popoutUrl]);
+    expect(standard.loadedUrls).toEqual([appUrl, nextUrl]);
+
+    await factory.loadUrl({ url: appUrl });
+    expect(popout.closeCount).toBe(1);
+    expect(standard.loadedUrls).toEqual([appUrl, nextUrl, appUrl]);
+  });
+
+  it("does not count pop-outs as open app windows", async () => {
+    const { factory } = await createFactoryHarness();
+    const popout = await factory.createPopoutWindow({
+      bounds: popoutBounds,
+      url: popoutUrl,
+    });
+    if (!(popout instanceof FakeDesktopWindow)) {
+      throw new Error("Expected a fake window");
+    }
+
+    expect(factory.hasOpenWindows()).toBe(false);
+    expect(factory.hasPopoutWindows()).toBe(true);
+    expect(factory.focusFirstWindow()).toBe(false);
+    expect(popout.focusCount).toBe(0);
+
+    const standard = await factory.createWindow({
+      initialUrl: appUrl,
+      stateKey: null,
+    });
+    if (!(standard instanceof FakeDesktopWindow)) {
+      throw new Error("Expected a fake window");
+    }
+    expect(factory.hasOpenWindows()).toBe(true);
+    expect(factory.focusFirstWindow()).toBe(true);
+    expect(standard.focusCount).toBe(1);
+    expect(popout.focusCount).toBe(0);
+  });
+
+  it("closes a pop-out whose page fails to load", async () => {
+    const loadError = new Error("ERR_CONNECTION_REFUSED (-102)");
+    const createdWindows: FakeDesktopWindow[] = [];
+    const { factory } = await createFactoryHarness({
+      browserWindowCreator: {
+        create(options) {
+          const browserWindow = new FakeDesktopWindow({ options });
+          browserWindow.loadError = loadError;
+          createdWindows.push(browserWindow);
+          return browserWindow;
+        },
+      },
+    });
+
+    await expect(
+      factory.createPopoutWindow({ bounds: popoutBounds, url: popoutUrl }),
+    ).rejects.toBe(loadError);
+    const popout = createdWindows[0];
+    if (!popout) throw new Error("Expected a pop-out window");
+    expect(popout.closeCount).toBe(1);
+
+    await factory.loadUrl({ url: appUrl });
+    expect(popout.closeCount).toBe(1);
+  });
 });
 
 describe("macosTrafficLightPosition", () => {

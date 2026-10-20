@@ -47,6 +47,20 @@ export type BbDesktopClipboardContent = z.infer<
   typeof bbDesktopClipboardContentSchema
 >;
 
+export const BB_DESKTOP_MAX_POPOUT_WINDOW_PATH_LENGTH = 2048;
+export const bbDesktopPopoutWindowRequestSchema = z
+  .object({
+    path: z
+      .string()
+      .min(1)
+      .max(BB_DESKTOP_MAX_POPOUT_WINDOW_PATH_LENGTH)
+      .startsWith("/"),
+  })
+  .strict();
+export type BbDesktopPopoutWindowRequest = z.infer<
+  typeof bbDesktopPopoutWindowRequestSchema
+>;
+
 export const bbDesktopZoomCommandSchema = z.enum(["in", "out", "reset"]);
 export type BbDesktopZoomCommand = z.infer<typeof bbDesktopZoomCommandSchema>;
 export const BB_DESKTOP_MIN_ZOOM_PERCENT = 50;
@@ -88,6 +102,7 @@ export interface BbDesktopApi extends BbDesktopInfo {
   openWindowFind?(request: BbDesktopWindowFindRequest): void;
   openDataDirectory?(): Promise<void>;
   openExternalUrl(url: string): void;
+  openPopoutWindow?(request: BbDesktopPopoutWindowRequest): Promise<boolean>;
   openServerDaemonLogs?(): Promise<void>;
   reloadWindow?(): void;
   setSplitNavigationEnabled?(

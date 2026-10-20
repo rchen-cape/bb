@@ -21,6 +21,7 @@ import {
   isDocumentVisible,
   subscribeToDocumentVisibility,
 } from "./document-visibility";
+import { isPopoutWindow } from "./popout-window";
 
 type ChangeCallback = (message: ChangedMessage) => void;
 type ThreadOpenCallback = (signal: ThreadOpenSignal) => void;
@@ -342,6 +343,9 @@ export class WebSocketManager {
 
     const threadOpen = threadOpenSignalLenientSchema.safeParse(parsed);
     if (threadOpen.success) {
+      if (isPopoutWindow()) {
+        return;
+      }
       if (threadOpen.data.file !== null) {
         this.pendingOpenFileByThreadId.set(
           threadOpen.data.threadId,
@@ -357,6 +361,9 @@ export class WebSocketManager {
     const threadPaneAction =
       threadPaneActionSignalLenientSchema.safeParse(parsed);
     if (threadPaneAction.success) {
+      if (isPopoutWindow()) {
+        return;
+      }
       for (const cb of this.threadPaneActionCallbacks) {
         cb(threadPaneAction.data);
       }

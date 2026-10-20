@@ -14,6 +14,7 @@ import {
   nativeTheme,
   net,
   safeStorage,
+  screen,
   session,
   shell,
   webContents as electronWebContents,
@@ -49,6 +50,11 @@ import {
 } from "@bb/server-contract";
 import { z } from "zod";
 import { registerDesktopClipboardIpc } from "./desktop-clipboard.js";
+import {
+  registerDesktopPopoutWindowIpc,
+  resolveAppCommandTarget,
+  resolvePopoutWindowBounds,
+} from "./desktop-popout-window.js";
 import { registerDesktopWindowFocusIpc } from "./desktop-window-focus.js";
 import {
   assertPathExists,
@@ -321,6 +327,11 @@ interface CreateApplicationWindowArgs {
   stateKey: WindowStateKey | null;
 }
 
+interface OpenPopoutApplicationWindowArgs {
+  opener: WebContents;
+  url: string;
+}
+
 interface StartOwnedRuntimeArgs {
   bridgePath: string;
   serverUrl: string;
@@ -412,6 +423,7 @@ let systemConfigSync: SystemConfigSync | null = null;
 let systemConfigRefreshToken = 0;
 let refreshRemoteSystemConfig: (() => void) | null = null;
 const applicationWindowWebContentsIds = new Set<number>();
+const popoutWindowWebContentsIds = new Set<number>();
 const splitNavigationEnabledWebContentsIds = new Set<number>();
 const splitNavigationCommandsByWebContentsId = new Map<
   number,
@@ -759,6 +771,43 @@ function getFocusedApplicationWindow(): BrowserWindow | null {
   return null;
 }
 
+function sendAppCommandToStandardWindow(command: AppCommandId): void {
+  const target = resolveAppCommandTarget({
+    applicationWindows: BrowserWindow.getAllWindows().filter(
+      (browserWindow) =>
+        !browserWindow.isDestroyed() &&
+        applicationWindowWebContentsIds.has(browserWindow.webContents.id),
+    ),
+    focusedWindow: getFocusedApplicationWindow(),
+    isPopoutWindow: (browserWindow) =>
+      popoutWindowWebContentsIds.has(browserWindow.webContents.id),
+  });
+  if (target.kind === "none") {
+    return;
+  }
+  if (target.kind === "open-standard-window") {
+    if (bbAppLoaded) {
+      void createApplicationWindow({
+        initialUrl: currentWindowUrl,
+        stateKey: null,
+      });
+    }
+    return;
+  }
+  if (target.focus) {
+    if (target.window.isMinimized()) {
+      target.window.restore();
+    }
+    target.window.show();
+    target.window.focus();
+  }
+  sendToApplicationRenderer(
+    target.window,
+    BB_DESKTOP_APP_COMMAND_CHANNEL,
+    command,
+  );
+}
+
 function listMenuConnectServers(): ConnectServerRef[] {
   const servers: ConnectServerRef[] = connectAccountServers.map((server) => ({
     handle: server.handle,
@@ -850,14 +899,7 @@ function refreshApplicationMenu(): void {
       }
     },
     openNewThread() {
-      const browserWindow = getFocusedApplicationWindow();
-      if (browserWindow !== null) {
-        sendToApplicationRenderer(
-          browserWindow,
-          BB_DESKTOP_APP_COMMAND_CHANNEL,
-          "thread.new",
-        );
-      }
+      sendAppCommandToStandardWindow("thread.new");
     },
     reopenClosedTab() {
       const browserWindow = getFocusedApplicationWindow();
@@ -870,14 +912,7 @@ function refreshApplicationMenu(): void {
       }
     },
     openSettings() {
-      const browserWindow = getFocusedApplicationWindow();
-      if (browserWindow !== null) {
-        sendToApplicationRenderer(
-          browserWindow,
-          BB_DESKTOP_APP_COMMAND_CHANNEL,
-          "settings.open",
-        );
-      }
+      sendAppCommandToStandardWindow("settings.open");
     },
     zoomFocusedPage(command) {
       zoomWebContents(electronWebContents.getFocusedWebContents(), command);
@@ -1097,12 +1132,20 @@ function startRemoteSystemConfigSync(serverUrl: string): void {
   systemConfigSync = createRemoteSystemConfigSync(serverUrl);
 }
 
-function registerApplicationWindow(browserWindow: DesktopBrowserWindow): void {
+function registerApplicationWindow(
+  browserWindow: DesktopBrowserWindow,
+  { isPopout = false }: { isPopout?: boolean } = {},
+): void {
   const webContentsId = browserWindow.webContents.id;
   applicationWindowWebContentsIds.add(webContentsId);
+  if (isPopout) {
+    popoutWindowWebContentsIds.add(webContentsId);
+  }
   const nativeWindow = BrowserWindow.fromId(browserWindow.id);
   if (nativeWindow !== null) {
-    desktopBrowserBroker?.registerWindow(nativeWindow);
+    if (!isPopout) {
+      desktopBrowserBroker?.registerWindow(nativeWindow);
+    }
     nativeWindow.webContents.on(
       "did-start-navigation",
       (_event, _url, isInPlace, isMainFrame) => {
@@ -1134,6 +1177,7 @@ function registerApplicationWindow(browserWindow: DesktopBrowserWindow): void {
     desktopFindViewManager?.releaseWindow(webContentsId);
     desktopBrowserBroker?.releaseWindow(webContentsId);
     applicationWindowWebContentsIds.delete(webContentsId);
+    popoutWindowWebContentsIds.delete(webContentsId);
     splitNavigationEnabledWebContentsIds.delete(webContentsId);
     splitNavigationCommandsByWebContentsId.delete(webContentsId);
   });
@@ -2100,6 +2144,12 @@ async function loadWindowUrl(args: LoadWindowUrlArgs): Promise<void> {
     return;
   }
 
+  if (
+    !desktopWindowFactory.hasOpenWindows() &&
+    desktopWindowFactory.hasPopoutWindows()
+  ) {
+    await createApplicationWindow({ initialUrl: null, stateKey: null });
+  }
   await desktopWindowFactory.loadUrl({ url: args.url });
 }
 
@@ -2175,6 +2225,32 @@ async function createApplicationWindow(
   return browserWindow;
 }
 
+async function openPopoutApplicationWindow(
+  args: OpenPopoutApplicationWindowArgs,
+): Promise<boolean> {
+  const openerWindow = resolveApplicationWindow(args.opener);
+  if (desktopWindowFactory === null || openerWindow === null) {
+    return false;
+  }
+
+  const openerBounds = openerWindow.getBounds();
+  const browserWindow = await desktopWindowFactory.createPopoutWindow({
+    bounds: resolvePopoutWindowBounds({
+      openerBounds,
+      workArea: screen.getDisplayMatching(openerBounds).workArea,
+    }),
+    url: args.url,
+  });
+  if (browserWindow.isDestroyed()) {
+    return false;
+  }
+  registerApplicationWindow(browserWindow, { isPopout: true });
+  if (shouldOpenDevTools()) {
+    browserWindow.webContents.openDevTools({ mode: "detach" });
+  }
+  return true;
+}
+
 async function stopOwnedRuntime(): Promise<void> {
   const runtime = currentRuntime;
   if (runtime === null || runtime.ownership !== "spawned") {
@@ -2235,6 +2311,11 @@ function registerDesktopUpdateIpc(): void {
   });
   registerDesktopWindowFocusIpc(applicationWindowWebContentsIds);
   registerDesktopClipboardIpc(applicationWindowWebContentsIds);
+  registerDesktopPopoutWindowIpc({
+    applicationWindowWebContentsIds,
+    getAppUrl: () => (bbAppLoaded ? currentWindowUrl : null),
+    open: openPopoutApplicationWindow,
+  });
   ipcMain.on(BB_DESKTOP_ZOOM_COMMAND_CHANNEL, (event, payload: unknown) => {
     const parsed = bbDesktopZoomCommandSchema.safeParse(payload);
     if (parsed.success) {

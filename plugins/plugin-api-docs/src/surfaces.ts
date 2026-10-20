@@ -73,6 +73,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "useBbNavigate",
           "BbNavigate.toPluginPanel",
           "BbNavigate.experimental_openTerminal",
+          "BbNavigate.experimental_openPluginPanelInWindow",
         ],
         firstParty: ["Automations", "Docs", "GitHub", "Tasks", "Theme Preview"],
       },

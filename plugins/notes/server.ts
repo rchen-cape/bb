@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
-import { existsSync, readdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import {
   defineRpcContract,
   type BbPluginApi,
@@ -23,14 +23,19 @@ import {
   type NotesSettings,
 } from "./lib/vscode-settings.js";
 import { isMarkdownPath } from "./lib/notes-tree.js";
+import {
+  parseWikiTags,
+  resolveWikiTagsPath,
+  wikiTagsResultSchema,
+  type WikiTag,
+  type WikiTagsResult,
+} from "./lib/wiki-tags.js";
 
 const MAX_EDITABLE_BYTES = 8 * 1024 * 1024;
 
+const MAX_WIKI_TAGS_BYTES = 4 * 1024 * 1024;
+
 const MAX_TREE_ENTRIES = 10_000;
-
-const ASSET_LEASE_TTL_MS = 60 * 60 * 1000;
-
-const ASSET_LEASE_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
 /**
  * A VS Code-compatible location, so a user can drop the same
@@ -48,10 +53,6 @@ const relativePathSchema = z
   });
 
 export const rpcContract = defineRpcContract({
-  assets: {
-    input: z.null(),
-    output: z.object({ baseUrl: z.string(), expiresAtMs: z.number() }),
-  },
   settings: {
     input: z.null(),
     output: z.object({
@@ -122,53 +123,51 @@ export const rpcContract = defineRpcContract({
       .strict(),
     output: z.object({ path: z.string() }),
   },
+  wikiTags: {
+    input: z.object({ knownMtimeMs: z.number().nullable() }).strict(),
+    output: wikiTagsResultSchema,
+  },
 });
 
-function isBundleStale(moduleDir: string, bundleDir: string): boolean {
-  const builtAtMs = statSync(path.join(bundleDir, "editor.js")).mtimeMs;
-  const entryDir = path.join(moduleDir, "monaco-bundle");
-  if (!existsSync(entryDir)) return false;
-
-  const inputs = [
-    path.join(moduleDir, "scripts", "stage-assets.mjs"),
-    ...readdirSync(entryDir).map((name) => path.join(entryDir, name)),
-    path.join(moduleDir, "package.json"),
-  ];
-  return inputs.some(
-    (input) => existsSync(input) && statSync(input).mtimeMs > builtAtMs,
-  );
+interface FileVersion {
+  mtimeMs: number;
+  size: number;
 }
 
-async function ensureMonacoBundleDir(
-  log: (message: string) => void,
-): Promise<string> {
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    path.join(moduleDir, "monaco"),
-    path.join(moduleDir, "dist", "monaco"),
-  ];
-  const built = candidates.find((candidate) =>
-    existsSync(path.join(candidate, "editor.js")),
-  );
-  if (built !== undefined && !isBundleStale(moduleDir, built)) return built;
+interface WikiTagsSnapshot extends FileVersion {
+  path: string;
+  tags: WikiTag[] | null;
+}
 
-  log(
-    built === undefined
-      ? "Notes Monaco bundle missing; building it (first run in a source checkout)"
-      : "Notes Monaco bundle is older than its sources; rebuilding it",
-  );
-  const script = new URL("./scripts/stage-assets.mjs", import.meta.url).href;
-  await import(script);
-
-  const staged = candidates.find((candidate) =>
-    existsSync(path.join(candidate, "editor.js")),
-  );
-  if (staged === undefined) {
-    throw new Error(
-      "could not build the Notes Monaco bundle; run `pnpm --filter bb-plugin-notes build:monaco`",
-    );
+function statWikiTagsFile(file: string): FileVersion | null {
+  try {
+    const stats = statSync(file);
+    return stats.isFile() ? { mtimeMs: stats.mtimeMs, size: stats.size } : null;
+  } catch {
+    return null;
   }
-  return staged;
+}
+
+async function readWikiTagsFile(
+  file: string,
+  size: number,
+): Promise<WikiTag[] | null> {
+  if (size > MAX_WIKI_TAGS_BYTES) return null;
+  return parseWikiTags(await readFile(file, "utf8"));
+}
+
+function describeWikiTags(file: string | null, result: WikiTagsResult): string {
+  if (file === null) return "off";
+  switch (result.status) {
+    case "ok":
+      return `${file} (${result.tags.length} ${result.tags.length === 1 ? "doc" : "docs"})`;
+    case "missing":
+      return `${file} (not found)`;
+    case "invalid":
+      return `${file} (not a valid tags.json)`;
+    default:
+      return file;
+  }
 }
 
 interface ParsedArgs {
@@ -232,8 +231,6 @@ const CLI_USAGE = `Usage: bb notes <list|read|write|new|mkdir|move|remove|settin
 `;
 
 export default async function plugin(bb: BbPluginApi) {
-  let assetLease: { baseUrl: string; expiresAtMs: number } | null = null;
-
   const settingsStore = bb.settings.define({
     rootDirectory: {
       type: "string",
@@ -244,7 +241,24 @@ export default async function plugin(bb: BbPluginApi) {
         .min(1, "A notes folder path is required")
         .max(1024, "That path is too long"),
     },
+    wikiTagsFile: {
+      type: "string",
+      label: "Wiki tags file",
+      description:
+        "Path to the Wiki's .wiki/tags.json; enables @ autocomplete of Wiki doc names. Leave empty to turn it off.",
+      experimental_schema: z
+        .string()
+        .max(1024, "That path is too long")
+        .refine(
+          (value) =>
+            value.trim() === "" ||
+            resolveWikiTagsPath(value, os.homedir()) !== null,
+          'The Wiki tags file must be an absolute path or start with "~/"',
+        ),
+    },
   });
+
+  let wikiTagsSnapshot: WikiTagsSnapshot | null = null;
 
   /**
    * Read per request rather than cached, so changing the setting takes
@@ -258,21 +272,51 @@ export default async function plugin(bb: BbPluginApi) {
     });
   }
 
-  async function assets() {
-    const now = Date.now();
+  async function wikiTagsFile(): Promise<string | null> {
+    const values = await settingsStore.get();
+    return resolveWikiTagsPath(values.wikiTagsFile, os.homedir());
+  }
+
+  async function cachedWikiTags(
+    file: string,
+    version: FileVersion,
+  ): Promise<WikiTag[] | null> {
+    const cached = wikiTagsSnapshot;
     if (
-      assetLease === null ||
-      assetLease.expiresAtMs - now < ASSET_LEASE_REFRESH_MARGIN_MS
+      cached !== null &&
+      cached.path === file &&
+      cached.mtimeMs === version.mtimeMs &&
+      cached.size === version.size
     ) {
-      const bundleDir = await ensureMonacoBundleDir((message) =>
-        bb.log.info(message),
-      );
-      assetLease = await bb.sdk.files.createPreview({
-        rootPath: bundleDir,
-        ttlMs: ASSET_LEASE_TTL_MS,
-      });
+      return cached.tags;
     }
-    return assetLease;
+    try {
+      const tags = await readWikiTagsFile(file, version.size);
+      wikiTagsSnapshot = { path: file, ...version, tags };
+      return tags;
+    } catch {
+      return null;
+    }
+  }
+
+  async function wikiTagsAt(
+    file: string,
+    knownMtimeMs: number | null,
+  ): Promise<WikiTagsResult> {
+    const version = statWikiTagsFile(file);
+    if (version === null) return { status: "missing" };
+    if (version.mtimeMs === knownMtimeMs) return { status: "unchanged" };
+    const tags = await cachedWikiTags(file, version);
+    return tags === null
+      ? { status: "invalid" }
+      : { status: "ok", mtimeMs: version.mtimeMs, tags };
+  }
+
+  async function wikiTags(
+    knownMtimeMs: number | null,
+  ): Promise<WikiTagsResult> {
+    const file = await wikiTagsFile();
+    return file === null ? { status: "off" } : wikiTagsAt(file, knownMtimeMs);
   }
 
   /**
@@ -431,8 +475,6 @@ export default async function plugin(bb: BbPluginApi) {
   }
 
   bb.rpc.register(rpcContract, {
-    assets: () => assets(),
-
     async settings() {
       const { settings, overridePath } = await readSettings();
       return { root: await rootDirectory(), settings, overridePath };
@@ -490,6 +532,8 @@ export default async function plugin(bb: BbPluginApi) {
       });
       return { path: relativeToRoot(notesRoot, absolute) };
     },
+
+    wikiTags: ({ knownMtimeMs }) => wikiTags(knownMtimeMs),
   });
 
   bb.cli.register({
@@ -565,10 +609,21 @@ export default async function plugin(bb: BbPluginApi) {
 
         if (command === "settings") {
           const { settings, overridePath } = await readSettings();
+          const tagsFile = await wikiTagsFile();
+          const tagsResult: WikiTagsResult =
+            tagsFile === null
+              ? { status: "off" }
+              : await wikiTagsAt(tagsFile, null);
           if (asJson) {
+            const wikiTagsSummary = {
+              path: tagsFile,
+              status: tagsResult.status,
+              docCount:
+                tagsResult.status === "ok" ? tagsResult.tags.length : null,
+            };
             return {
               exitCode: 0,
-              stdout: `${JSON.stringify({ root: notesRoot, overridePath, settings }, null, 2)}\n`,
+              stdout: `${JSON.stringify({ root: notesRoot, overridePath, settings, wikiTags: wikiTagsSummary }, null, 2)}\n`,
             };
           }
           const rules = Object.keys(settings["highlight.regexes"] ?? {}).length;
@@ -579,6 +634,7 @@ export default async function plugin(bb: BbPluginApi) {
               `Override:        ${overridePath ?? "(none — using imported VS Code defaults)"}`,
               `Highlight rules: ${rules}`,
               `Ordered TOC:     ${settings["markdown.extension.toc.orderedList"] === true ? "yes" : "no"}`,
+              `Wiki tags:       ${describeWikiTags(tagsFile, tagsResult)}`,
               "",
             ].join("\n"),
           };

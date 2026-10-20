@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
+import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import {
   useAppCommandRunner,
   useAppCommandShortcut,
@@ -22,6 +23,7 @@ import { appToast } from "@/components/ui/app-toast";
 import { invalidatePluginList } from "@/hooks/cache-owners/plugin-cache-owner";
 import { appQueryClient } from "@/lib/app-query-client";
 import { usePluginNavPanelChrome } from "@/lib/plugin-nav-panel-chrome";
+import { openPluginPanelInWindow } from "@/lib/plugin-panel-window";
 import {
   getPluginDetailRoutePath,
   getPluginPanelRoutePath,
@@ -151,6 +153,7 @@ export function SidebarNavigationModelProvider({
   const commandRunner = useAppCommandRunner();
   const splitActions = usePaneContentSplitActions();
   const setPluginEnabled = useSetPluginEnabled();
+  const isCompact = useIsCompactViewport();
   const newThreadShortcut = useAppCommandShortcut("thread.new");
   const threadSearchShortcut = useAppCommandShortcut("thread.search");
   const searchThreadsDisabled = !commandRunner.isCommandAvailable(
@@ -204,6 +207,7 @@ export function SidebarNavigationModelProvider({
     arrangement,
     commandRunner,
     host,
+    isCompact,
     items,
     navigate,
     rowsById,
@@ -215,6 +219,7 @@ export function SidebarNavigationModelProvider({
       arrangement,
       commandRunner,
       host,
+      isCompact,
       items,
       navigate,
       rowsById,
@@ -285,6 +290,23 @@ export function SidebarNavigationModelProvider({
       },
       setVisible(itemId, isVisible) {
         latest.current.arrangement.setVisible(itemId, isVisible);
+      },
+      openInWindow(itemId) {
+        const found = lookup(itemId);
+        if (!found || found.item.isDisabled || found.item.isLoading) return;
+        const { current, row, item } = found;
+        const chrome = row.panelEntry?.chrome;
+        if (row.action.kind !== "open-plugin-panel" || !chrome) return;
+        void openPluginPanelInWindow({
+          pluginId: chrome.pluginId,
+          path: chrome.path,
+          subPath: "",
+          isCompact: current.isCompact,
+        }).then((opened) => {
+          if (!opened) {
+            appToast.error(`Failed to open ${item.label} in a window`);
+          }
+        });
       },
       openDetails(itemId) {
         const found = lookup(itemId);

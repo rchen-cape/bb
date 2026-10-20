@@ -450,6 +450,31 @@ only `{id, name, active}`; custom server IDs are opaque hashes. Selection is
 validated against native choices and runs the menu's existing authentication,
 window navigation, and runtime lifecycle. Older desktop shells omit these actions.
 
+### Pop-out windows
+
+**Open in window** on a plugin page in the nav rail calls the optional
+`window.bbDesktop.openPopoutWindow({ path })` action
+(`src/desktop-popout-window.ts`). The main process accepts the request only
+from the main frame of a bb app window, and only while the bb app is loaded.
+`path` must be an absolute path such as `/plugins/<id>/<panel>`; the app
+resolves it against the current app URL and rejects it unless the result and
+the sending page have the same origin as that URL. The action resolves `true`
+when the window opens and `false` when the path or payload is rejected. It
+rejects when the sender is not a bb app window's main frame or the page fails
+to load.
+
+A pop-out is a normal bb app window that shows only that page. It opens at
+960×800 (smaller on a small display), centered on the window that opened it
+and offset 32 px down and right, inside that display's work area. Pop-outs are
+not saved to `<userData>/window-state.json`, so they do not reopen when the app
+restarts, and they are not offered to browser automation as a browser host.
+They close when the app reloads all windows to a new URL, for example after a
+server switch or a startup error page; if only pop-outs are open, a standard
+window opens first to show the new URL. While a pop-out is focused, the menu's
+**New Thread** and **Settings** commands go to a standard window, which opens
+if none is left. Older desktop shells omit the action, and the app then hides
+**Open in window**.
+
 ### Server moves
 
 After `bb server move`, the old computer's data dir (`~/.bb` or

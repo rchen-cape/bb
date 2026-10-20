@@ -3596,6 +3596,19 @@ export interface BbNavigate {
    * docs/api_to_audit.md.
    */
   experimental_openTerminal(options: { terminalId: string }): Promise<boolean>;
+  /**
+   * Open one of this plugin's own nav panels by its `path` in a separate
+   * window that shows only that page, without the rail, sidebar, or split
+   * workspace. `subPath` targets a location inside the panel. Resolves false
+   * when `path` is not one of this plugin's registered nav panels, on compact
+   * viewports and in the native mobile shell, when the desktop build cannot
+   * open windows, or when the browser blocks the popup. Experimental: see
+   * docs/api_to_audit.md.
+   */
+  experimental_openPluginPanelInWindow(
+    path: string,
+    options?: { subPath?: string },
+  ): Promise<boolean>;
 }
 
 // ---------------------------------------------------------------------------

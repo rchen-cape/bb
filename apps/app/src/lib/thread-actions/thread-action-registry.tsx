@@ -230,6 +230,8 @@ function useLatestNavigate(navigate: BbNavigate, pluginId: string): BbNavigate {
       latest.current.experimental_openFileExternally(...args),
     experimental_openTerminal: (...args) =>
       latest.current.experimental_openTerminal(...args),
+    experimental_openPluginPanelInWindow: (...args) =>
+      latest.current.experimental_openPluginPanelInWindow(...args),
   }));
   return stable;
 }

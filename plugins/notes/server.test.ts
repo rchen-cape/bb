@@ -1,5 +1,13 @@
+import os from "node:os";
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import {
+  chmodSync,
+  mkdtempSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakePluginHost } from "@get-bb/plugin-sdk/testing";
 import plugin from "./server";
 
@@ -14,7 +22,11 @@ interface FileStubs {
   remove?: ReturnType<typeof vi.fn>;
 }
 
-async function setup(overrides: FileStubs = {}, rootDirectory = NOTES_ROOT) {
+async function setup(
+  overrides: FileStubs = {},
+  rootDirectory = NOTES_ROOT,
+  wikiTagsFile?: string,
+) {
   const files = {
     read:
       overrides.read ??
@@ -38,14 +50,13 @@ async function setup(overrides: FileStubs = {}, rootDirectory = NOTES_ROOT) {
     mkdir: overrides.mkdir ?? vi.fn(() => ({ ok: true })),
     move: overrides.move ?? vi.fn(() => ({ ok: true })),
     remove: overrides.remove ?? vi.fn(() => ({ ok: true })),
-    createPreview: vi.fn(() => ({
-      baseUrl: "/preview/notes",
-      expiresAtMs: Date.now() + 3_600_000,
-    })),
   };
   const { bb, harness } = createFakePluginHost({
     pluginId: "notes",
-    settings: { rootDirectory },
+    settings:
+      wikiTagsFile === undefined
+        ? { rootDirectory }
+        : { rootDirectory, wikiTagsFile },
     sdk: {
       system: { config: () => ({ dataDir: "/server-data" }) },
       files,
@@ -398,5 +409,189 @@ describe("settings", () => {
     const result = await harness.callRpc("settings", null);
     expect(result.overridePath).toBeNull();
     expect(result.settings["markdown.extension.toc.orderedList"]).toBe(true);
+  });
+});
+
+describe("wiki tags", () => {
+  const MTIME_SECONDS = 1_700_000_000;
+  let dir = "";
+  let tagsPath = "";
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "notes-wiki-tags-"));
+    tagsPath = path.join(dir, "tags.json");
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  function writeTags(file: string, tags: string[], mtimeSeconds: number) {
+    const docs = tags.map((tag) => ({ tag, title: tag, type: "topic" }));
+    writeFileSync(file, JSON.stringify({ version: 1, docs }));
+    utimesSync(file, mtimeSeconds, mtimeSeconds);
+  }
+
+  it("is off when the setting is unset or blank", async () => {
+    const unset = await setup();
+    await expect(
+      unset.harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "off" });
+
+    const blank = await setup({}, NOTES_ROOT, "  ");
+    await expect(
+      blank.harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "off" });
+  });
+
+  it("reports a file that does not exist", async () => {
+    const { harness } = await setup(
+      {},
+      NOTES_ROOT,
+      path.join(dir, "absent.json"),
+    );
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "missing" });
+  });
+
+  it("reports a folder in place of the file as missing", async () => {
+    const { harness } = await setup({}, NOTES_ROOT, dir);
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "missing" });
+  });
+
+  it("reports a file that is not a valid tags.json", async () => {
+    writeFileSync(tagsPath, '{ "version": 1, "docs": [');
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "invalid" });
+  });
+
+  it("returns the tags with the file's mtime", async () => {
+    writeTags(tagsPath, ["alpha", "beta"], MTIME_SECONDS);
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    const result = await harness.callRpc("wikiTags", { knownMtimeMs: null });
+    expect(result).toEqual({
+      status: "ok",
+      mtimeMs: MTIME_SECONDS * 1000,
+      tags: [
+        { tag: "alpha", title: "alpha", type: "topic", aliases: [] },
+        { tag: "beta", title: "beta", type: "topic", aliases: [] },
+      ],
+    });
+  });
+
+  it("answers unchanged when the caller already has this version", async () => {
+    writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: MTIME_SECONDS * 1000 }),
+    ).resolves.toEqual({ status: "unchanged" });
+  });
+
+  it("reads the file again only when its mtime or size changes", async () => {
+    writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await harness.callRpc("wikiTags", { knownMtimeMs: null });
+
+    writeTags(tagsPath, ["gamma"], MTIME_SECONDS);
+    const cached = await harness.callRpc("wikiTags", { knownMtimeMs: null });
+    expect(cached).toMatchObject({ status: "ok", tags: [{ tag: "alpha" }] });
+
+    writeTags(tagsPath, ["gamma"], MTIME_SECONDS + 1);
+    const changed = await harness.callRpc("wikiTags", {
+      knownMtimeMs: MTIME_SECONDS * 1000,
+    });
+    expect(changed).toMatchObject({
+      status: "ok",
+      mtimeMs: (MTIME_SECONDS + 1) * 1000,
+      tags: [{ tag: "gamma" }],
+    });
+  });
+
+  it("picks up a tags file that appears after it was missing", async () => {
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "missing" });
+
+    writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toMatchObject({ status: "ok", tags: [{ tag: "alpha" }] });
+  });
+
+  it.skipIf(process.getuid?.() === 0)(
+    "reads the file again after a read error, even when its mtime is unchanged",
+    async () => {
+      writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+      chmodSync(tagsPath, 0o000);
+      const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+      await expect(
+        harness.callRpc("wikiTags", { knownMtimeMs: null }),
+      ).resolves.toEqual({ status: "invalid" });
+
+      chmodSync(tagsPath, 0o644);
+
+      await expect(
+        harness.callRpc("wikiTags", { knownMtimeMs: null }),
+      ).resolves.toMatchObject({
+        status: "ok",
+        mtimeMs: MTIME_SECONDS * 1000,
+        tags: [{ tag: "alpha" }],
+      });
+    },
+  );
+
+  it("refuses a tags file too large to be one the Wiki wrote", async () => {
+    const valid = JSON.stringify({ version: 1, docs: [{ tag: "alpha" }] });
+    writeFileSync(tagsPath, valid + " ".repeat(4 * 1024 * 1024));
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toEqual({ status: "invalid" });
+  });
+
+  it("follows a settings change without a restart", async () => {
+    const otherPath = path.join(dir, "other.json");
+    writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+    writeTags(otherPath, ["beta"], MTIME_SECONDS);
+    const { harness } = await setup({}, NOTES_ROOT, tagsPath);
+    await harness.callRpc("wikiTags", { knownMtimeMs: null });
+
+    await harness.setSettings({ wikiTagsFile: otherPath });
+
+    await expect(
+      harness.callRpc("wikiTags", { knownMtimeMs: null }),
+    ).resolves.toMatchObject({ status: "ok", tags: [{ tag: "beta" }] });
+  });
+
+  it("refuses a relative path in the setting", async () => {
+    const { harness } = await setup();
+    await expect(
+      harness.setSettings({ wikiTagsFile: "Wiki/.wiki/tags.json" }),
+    ).rejects.toThrow(/absolute path/);
+  });
+
+  it("shows the tags file in bb notes settings", async () => {
+    writeTags(tagsPath, ["alpha"], MTIME_SECONDS);
+    const configured = await setup({}, NOTES_ROOT, tagsPath);
+    const text = await configured.harness.runCli(["settings"]);
+    expect(text.stdout).toContain(`Wiki tags:       ${tagsPath} (1 doc)`);
+
+    const json = await configured.harness.runCli(["settings", "--json"]);
+    expect(JSON.parse(json.stdout ?? "").wikiTags).toEqual({
+      path: tagsPath,
+      status: "ok",
+      docCount: 1,
+    });
+
+    const off = await setup();
+    const offText = await off.harness.runCli(["settings"]);
+    expect(offText.stdout).toContain("Wiki tags:       off");
   });
 });

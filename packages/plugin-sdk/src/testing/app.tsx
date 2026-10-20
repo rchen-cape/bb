@@ -204,6 +204,11 @@ export type NavigateCall =
   | {
       method: "experimental_openTerminal";
       options: Parameters<BbNavigate["experimental_openTerminal"]>[0];
+    }
+  | {
+      method: "experimental_openPluginPanelInWindow";
+      path: string;
+      options?: { subPath?: string };
     };
 
 export interface ExperimentalFixedTabOpenCall {
@@ -1829,6 +1834,14 @@ export interface RenderSlotOptions<
   openTerminal?: (
     options: Parameters<BbNavigate["experimental_openTerminal"]>[0],
   ) => boolean;
+  /**
+   * Host acceptance for
+   * `useBbNavigate().experimental_openPluginPanelInWindow`.
+   */
+  openPluginPanelInWindow?: (
+    path: string,
+    options?: { subPath?: string },
+  ) => Promise<boolean> | boolean;
   /** Host acceptance for an owner-scoped fixed-tab selection. */
   experimental_openFixedTab?: (call: ExperimentalFixedTabOpenCall) => boolean;
   /** Initial session target visible to `experimental_useFixedTabTarget`. */
@@ -2194,6 +2207,16 @@ export function renderSlot<
         options: terminalOptions,
       });
       return options.openTerminal?.(terminalOptions) ?? false;
+    },
+    async experimental_openPluginPanelInWindow(path, windowOptions) {
+      navigateCalls.push({
+        method: "experimental_openPluginPanelInWindow",
+        path,
+        ...(windowOptions !== undefined ? { options: windowOptions } : {}),
+      });
+      return (
+        (await options.openPluginPanelInWindow?.(path, windowOptions)) ?? false
+      );
     },
   };
 

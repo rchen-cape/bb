@@ -87,6 +87,7 @@ import { wsManager } from "@/lib/ws";
 import { pluginSdkSettingsQueryKey } from "@/hooks/queries/query-keys";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
 import { normalizeExperimentalFileOpenOptions } from "@/lib/live-file-navigation";
+import { openPluginPanelInWindow } from "@/lib/plugin-panel-window";
 import {
   getPluginFixedTabOwnerId,
   useAppFixedTabTarget,
@@ -462,6 +463,18 @@ export function useBbNavigate(): BbNavigate {
     },
     [appNavigation],
   );
+  const experimental_openPluginPanelInWindow = useCallback<
+    BbNavigate["experimental_openPluginPanelInWindow"]
+  >(
+    async (path, options) => {
+      const subPath = options?.subPath ?? "";
+      if (typeof path !== "string" || typeof subPath !== "string") {
+        return false;
+      }
+      return openPluginPanelInWindow({ pluginId, path, subPath, isCompact });
+    },
+    [isCompact, pluginId],
+  );
   return useMemo<BbNavigate>(
     () => ({
       toThread,
@@ -472,6 +485,7 @@ export function useBbNavigate(): BbNavigate {
       experimental_openFileExternally,
       experimental_openFilePreview,
       experimental_openTerminal,
+      experimental_openPluginPanelInWindow,
       openUrl,
     }),
     [
@@ -483,6 +497,7 @@ export function useBbNavigate(): BbNavigate {
       experimental_openFileExternally,
       experimental_openFilePreview,
       experimental_openTerminal,
+      experimental_openPluginPanelInWindow,
       openUrl,
     ],
   );

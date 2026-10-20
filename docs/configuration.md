@@ -1744,24 +1744,31 @@ nothing, because waiting does not fix them.
 
 ### Notes plugin
 
-The builtin Notes plugin adds a Markdown-only source editor over one folder. It
-has one setting, edited under Plugins → Installed plugins or with
+The builtin Notes plugin adds a live-preview Markdown editor over one folder:
+text looks rendered as you type, Markdown marks show only where the cursor is,
+and a selection toolbar, a `/` block menu and `==highlight==` cover common
+formatting. It has two settings, edited under Plugins → Installed plugins or with
 `bb plugin config notes set <key> <value>`:
 
-| Key             | Default   | Behavior                                                              |
-| --------------- | --------- | --------------------------------------------------------------------- |
-| `rootDirectory` | `~/Notes` | Folder whose Markdown files the Notes panel lists, opens, and writes. |
+| Key             | Default   | Behavior                                                                                                                               |
+| --------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `rootDirectory` | `~/Notes` | Folder whose Markdown files the Notes panel lists, opens, and writes.                                                                  |
+| `wikiTagsFile`  | (empty)   | Path to the Wiki plugin's `.wiki/tags.json`. When set, typing `@` in the editor completes Wiki doc names. Empty or unset turns it off. |
 
-The value must be absolute or start with `~/`; a relative path is refused. It
-resolves on the primary machine, so `~` expands to the home directory of the
-account running the bb server. The folder is created if it does not exist, and
-changing the setting takes effect without restarting the plugin.
+Both values must be absolute or start with `~/`; a relative path, including a
+non-empty relative `wikiTagsFile`, is refused. They resolve on the primary
+machine, so `~` expands to the home directory of the account running the bb
+server. The notes folder is created if it does not exist, and changing either
+setting takes effect without restarting the plugin. Notes only reads the Wiki
+tags file and never writes it.
 
 Editor behavior is configured per folder rather than through bb settings: a
 `.vscode/settings.json` inside `rootDirectory` overrides the plugin's built-in
-VS Code defaults key by key. `bb notes settings` prints what is in effect. See
-the [notes skill](../plugins/notes/skills/notes/SKILL.md) for the understood
-keys and the `highlight.regexes` format.
+VS Code defaults key by key. `highlight.regexes` rules still colour text in the
+live preview, and line numbers stay off unless `editor.lineNumbers` is `on` or
+`relative`. `bb notes settings` prints what is in effect. See the
+[notes skill](../plugins/notes/skills/notes/SKILL.md) for the understood keys
+and the `highlight.regexes` format.
 
 ### Workflows plugin
 

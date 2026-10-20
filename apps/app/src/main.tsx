@@ -11,10 +11,12 @@ import { initializeFavicon } from "./lib/favicon-color-preference";
 import { installForeignDomMutationGuard } from "./lib/foreign-dom-mutation-guard";
 import { installAppQueryClientBrowserEvents } from "./lib/query-client";
 import { appQueryClient } from "./lib/app-query-client";
+import { isPopoutWindow } from "./lib/popout-window";
 import { applyCachedAppThemeCss } from "./lib/themes";
 import "./app.css";
 
 installForeignDomMutationGuard();
+isPopoutWindow();
 
 Error.stackTraceLimit = 50;
 

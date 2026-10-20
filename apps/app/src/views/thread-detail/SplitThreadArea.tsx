@@ -15,9 +15,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type ComponentProps,
   type PointerEvent as ReactPointerEvent,
-  type ReactNode,
   type SetStateAction,
 } from "react";
 import { useRouteState } from "@/hooks/useRouteState";
@@ -121,47 +119,8 @@ import {
 import { PaneMaximizeButton } from "./PaneMaximizeButton";
 import { wsManager } from "@/lib/ws";
 import { useImmediateRouteNavigate } from "@/components/ui/app-route-anchor";
-import { PluginDetailOpenerBoundary } from "@/components/plugin/plugin-detail-opener";
-import { defineSplit } from "@/lib/define-split";
+import { PluginPagePanelHost } from "@/components/plugin/PluginPagePanelHost";
 import { LazyPluginDetailPaneView } from "@/views/ToolsViewSplits";
-
-const LazyPluginPanelRightPanelHost = defineSplit<
-  ComponentProps<
-    typeof import("@/components/plugin/PluginPanelRightPanelHost").PluginPanelRightPanelHost
-  >
->({
-  id: "plugin-panel-right-panel-host",
-  load: () =>
-    import("@/components/plugin/PluginPanelRightPanelHost").then(
-      (module) => module.PluginPanelRightPanelHost,
-    ),
-  loading: () => null,
-  tier: "intent",
-});
-
-function PluginPagePanelHost({
-  children,
-  ...props
-}: {
-  children: ReactNode;
-  flushPageInsets?: boolean;
-  paneId?: string;
-  panelPath: string;
-  pluginId: string;
-  subPath: string;
-}) {
-  const pane = useOptionalPaneContext();
-  return (
-    <PluginDetailOpenerBoundary
-      key={`${props.pluginId}/${props.panelPath}`}
-      isFocused={pane?.isFocused ?? true}
-    >
-      <LazyPluginPanelRightPanelHost {...props}>
-        {children}
-      </LazyPluginPanelRightPanelHost>
-    </PluginDetailOpenerBoundary>
-  );
-}
 
 const PANE_DRAG_ENGAGE_DISTANCE_PX = 7;
 

@@ -49,9 +49,6 @@ export function decorationCss(
 
   const color = resolveColor(style.color, colors);
   if (color !== undefined) {
-    // `!important` because Monaco's own token rules target the same spans
-    // with equal specificity, and the user's rule is the more specific
-    // intent of the two.
     declarations.push(`color:${color} !important`);
   }
 
@@ -93,14 +90,6 @@ export function decorationClassName(css: string): string {
 
 const STYLE_ELEMENT_ID = "bb-plugin-notes-highlight-styles";
 
-/**
- * Interns decoration styles as CSS classes in a single stylesheet.
- *
- * Monaco styles a decoration by class name, not inline, so each distinct
- * style needs a rule somewhere. Keying the class on a hash of its own
- * declarations means re-running the same ruleset reuses the same classes and
- * the sheet stops growing once every style has been seen.
- */
 export class DecorationStyleSheet {
   private readonly emitted = new Set<string>();
   private element: HTMLStyleElement | null = null;

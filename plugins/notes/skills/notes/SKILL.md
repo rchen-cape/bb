@@ -1,14 +1,41 @@
 ---
 name: notes
-description: Read and edit the Markdown notes shown in BB's Notes panel. Use when a request mentions the Notes panel, `bb notes`, the notes folder, a note by filename, or the Markdown highlight rules and table of contents that panel applies.
+description: Read and edit the Markdown notes shown in BB's Notes panel. Use when a request mentions the Notes panel, `bb notes`, the notes folder, a note by filename, or the Markdown highlight rules, table of contents, and `@` Wiki doc completion that panel applies.
 ---
 
 # Notes
 
-Notes is a Markdown-only source editor over one folder on the primary machine,
-`~/Notes` by default. It shows the Markdown *source* with syntax colouring, not
-a rendered document — it is the VS Code editing experience for a notes folder,
-not a WYSIWYG editor.
+Notes is a live-preview Markdown editor over one folder on the primary machine,
+`~/Notes` by default. Text looks rendered while you write: headings are sized,
+emphasis is styled, lists show bullets and checkboxes, and tables render as
+tables. A construct's Markdown marks appear only while the cursor touches it,
+and the file stays plain Markdown: saving changes only what the user edited and
+keeps the byte-order mark and line ending. A file with mixed line endings is
+saved with the ending most of its lines use. YAML frontmatter collapses to a
+"Properties" line until the cursor enters it.
+
+Editing helpers in the panel:
+
+- Selecting text shows a formatting toolbar: Highlight, Bold, Italic,
+  Strikethrough, Code, Link. The shortcuts are ⌘⇧H, ⌘B, ⌘I, ⌘⇧S, ⌘E and ⌘K
+  (Ctrl on Linux and Windows).
+- `==text==` is a highlight. Write it that way when an agent edits a note and
+  should highlight something.
+- Typing `/` on an empty line opens a block menu: Text, Heading 1–3, Bulleted
+  list, Numbered list, To-do list, Quote, Code block, Divider, Table.
+- ⌘F opens find and replace. ⌘D selects the next match. A selected match inside
+  hidden Markdown, such as collapsed frontmatter, is shown.
+- Tab indents list items and code and accepts an open completion; elsewhere it
+  does nothing. ⌘⇧K deletes the line and ⌘Enter opens a new line below.
+- Clicking a rendered link opens web links through bb, and a relative link to
+  another note (`[Plan](plan.md)`) opens that note in the panel. A link to
+  `#anchor` (as in a table of contents) scrolls to that heading. When a link
+  cannot be opened (unknown note, missing heading, `mailto:`), the click puts
+  the cursor in the link instead.
+- Reload (after a conflict, or from the toolbar) replaces the note with the disk
+  version and starts a new undo history.
+- Fenced code blocks are coloured from the active bb code theme for common
+  languages (shell, JS/TS, JSON, Python, Go, YAML, SQL, Rust, and others).
 
 Notes is deliberately narrow:
 
@@ -21,11 +48,12 @@ Notes is deliberately narrow:
 
 ## The folder
 
-One setting, edited under Plugins → Installed plugins or from the CLI:
+Two settings, edited under Plugins → Installed plugins or from the CLI:
 
-| Key             | Default   | Behavior                                            |
-| --------------- | --------- | --------------------------------------------------- |
-| `rootDirectory` | `~/Notes` | The folder the panel reads and writes.              |
+| Key             | Default   | Behavior                                                       |
+| --------------- | --------- | -------------------------------------------------------------- |
+| `rootDirectory` | `~/Notes` | The folder the panel reads and writes.                         |
+| `wikiTagsFile`  | (unset)   | The Wiki's `.wiki/tags.json`; turns on `@` completion (below). |
 
 ```sh
 bb plugin config notes get rootDirectory
@@ -56,6 +84,55 @@ compare-and-swap check, so read first if a human may be editing the same note
 in the panel; the panel itself does use compare-and-swap and will report a
 conflict rather than clobber a change made underneath it.
 
+## Wiki @ completion
+
+When `wikiTagsFile` points at the Wiki plugin's tag list, typing `@` in a note
+opens a list of Wiki docs:
+
+```sh
+bb plugin config notes set wikiTagsFile ~/Wiki/.wiki/tags.json
+bb plugin config notes unset wikiTagsFile   # turn it off
+```
+
+- The `@` must start the line or follow whitespace, so an email address such
+  as `name@company` does not open the list.
+- Each entry shows the doc's tag, its title, and its type (`project`, `topic`,
+  or `process`). What you type must match the start of a word in the tag, an
+  alias, or the title, so `@cat` finds `adding-config-catalog`. Scattered
+  letters do not match, so a mention like `@george` closes the list instead of
+  leaving a doc selected for Enter to insert.
+- Picking an entry inserts the doc's canonical tag after the `@`, even when an
+  alias is what matched, so `@cc` becomes `@adding-config-catalog`.
+- The value must be absolute or start with `~/`, like `rootDirectory`. Empty
+  or unset means off. The BB server reads the file, so `~` is the home
+  directory of the account running it.
+- Notes only reads the file. It checks the file's modified time when the
+  panel opens, when the editor gains focus, and when the list opens, at most
+  once every 2 seconds, and reads the file again only when its modified time
+  or size changed.
+- The Wiki writes the file. Malformed entries are skipped. A file that is
+  missing, is not JSON, has another `version`, or is over 4 MiB gives no
+  completions.
+
+```json
+{
+  "version": 1,
+  "docs": [
+    {
+      "tag": "adding-config-catalog",
+      "title": "Adding config catalog",
+      "type": "process",
+      "aliases": ["cc", "config-catalog"]
+    }
+  ]
+}
+```
+
+`bb notes settings` shows the state on its `Wiki tags:` line: `off`, the path
+with the number of docs, `(not found)`, or `(not a valid tags.json)`. With
+`--json` the same is under `wikiTags` as `{ path, status, docCount }`, where
+`status` is `off`, `ok`, `missing`, or `invalid`.
+
 ## Editor settings
 
 Notes ships with a set of VS Code preferences already applied — there is no
@@ -80,10 +157,13 @@ Understood keys:
 | `highlight.regexFlags`                 | Default flags for those regexes; `gi` as in VS Code.        |
 | `markdown.extension.toc.orderedList`   | Numbered (`1.`) rather than bulleted table of contents.     |
 | `editor.wordWrap`                      | `on` or `off`; the toolbar also toggles it per session.      |
-| `editor.fontSize`, `editor.lineNumbers`| Passed to the editor.                                      |
+| `editor.fontSize`                      | Text size in pixels; unset uses the bb base text size.      |
+| `editor.lineNumbers`                   | `on` or `relative` shows a line-number gutter; unset or `off` hides it. |
 
-Unknown keys are preserved and ignored, so a real VS Code `settings.json` with
-settings for other extensions can be dropped in as-is.
+Line numbers are off unless this file turns them on. Settings apply to the open
+note as soon as the panel reads them, without reopening it. Unknown keys are
+preserved and ignored, so a real VS Code `settings.json` with settings for
+other extensions can be dropped in as-is.
 
 ### highlight.regexes
 
@@ -119,25 +199,28 @@ always `markdown` here.
 
 Scanning is per line, and lines over 2000 characters are skipped — the TODO and
 FIXME patterns backtrack superlinearly, and a pasted minified blob would
-otherwise stall the editor on every keystroke.
+otherwise stall the editor on every keystroke. The rules re-run shortly after
+typing pauses.
 
-### Built-in Markdown decorations
+The rules still apply in live preview. Where a rule and the live-preview
+styling cover the same text (a `#DONE` inside bold, a `TODO` in a heading),
+the rule's colour and background win. Rules also apply inside fenced code
+blocks, matching VS Code — that is the point of the TODO and FIXME patterns.
+`overviewRulerColor` draws a short tick in a thin column at the editor's right
+edge, at the matching line's position in the note.
 
-Separate from `highlight.regexes`, so replacing that setting does not remove
-them: a distinct colour per heading level `#` through `######`, and task-list
-styling that dims a completed `- [x]` item. Monaco's Markdown grammar tags
-every heading level identically, which is why these are decorations rather
-than theme rules. They skip fenced code blocks, so a `# comment` in a shell
-snippet is not coloured as a heading. The user's own rules deliberately do
-still apply inside fences, matching VS Code — that is the point of the TODO
-and FIXME patterns.
+There are no built-in per-level heading colours or task colours any more: the
+live preview sizes headings and renders tasks as checkboxes, with ticked tasks
+struck through and muted.
 
 ## Table of contents
 
 The toolbar's table-of-contents button fills the block between
 `<!-- toc -->` and `<!-- /toc -->`, rewriting it in place on each press. With
-no markers present it inserts the whole block at the cursor. Entries are
-numbered when `markdown.extension.toc.orderedList` is true. `#` lines inside
+no markers present it inserts the whole block at the cursor, or just below the
+YAML frontmatter when the cursor is in it or before it. Either way it is one
+undo step. Entries are numbered when `markdown.extension.toc.orderedList` is
+true. `#` lines inside
 fenced code blocks are not listed, and anchors follow GitHub's rules
 (lowercased, punctuation dropped, spaces to hyphens).
 

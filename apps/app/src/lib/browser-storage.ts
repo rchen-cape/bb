@@ -1,4 +1,5 @@
 import { atomWithStorage } from "jotai/utils";
+import { isPopoutWindow } from "./popout-window";
 
 type StringValueGuard<T extends string> = (value: string) => value is T;
 type StoredValueGuard<T> = (value: unknown) => value is T;
@@ -172,10 +173,12 @@ export function createTabScopedStorage<T>(
         (storage) => storage.setItem(key, serialized),
         undefined,
       );
+      if (isPopoutWindow()) return;
       localStorageStringStorage.setItem(key, serialized);
     },
     removeItem: (key: string) => {
       withSessionStorage((storage) => storage.removeItem(key), undefined);
+      if (isPopoutWindow()) return;
       localStorageStringStorage.removeItem(key);
     },
   };

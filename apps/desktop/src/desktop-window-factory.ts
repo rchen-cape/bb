@@ -63,6 +63,7 @@ export interface DesktopWindowWebContents extends DesktopContextMenuWebContents 
 
 export interface DesktopBrowserWindow extends StatefulBrowserWindow {
   readonly id: number;
+  close(): void;
   focus(): void;
   isMinimized(): boolean;
   loadURL(url: string): Promise<void>;
@@ -107,6 +108,11 @@ interface CreateDesktopWindowArgs {
   stateKey: WindowStateKey | null;
 }
 
+interface CreateDesktopPopoutWindowArgs {
+  bounds: WindowBounds;
+  url: string;
+}
+
 interface RestoreDesktopWindowsArgs {
   initialUrl: string | null;
 }
@@ -116,9 +122,13 @@ interface LoadDesktopWindowsUrlArgs {
 }
 
 export interface DesktopWindowFactory {
+  createPopoutWindow(
+    args: CreateDesktopPopoutWindowArgs,
+  ): Promise<DesktopBrowserWindow>;
   createWindow(args: CreateDesktopWindowArgs): Promise<DesktopBrowserWindow>;
   focusFirstWindow(): boolean;
   hasOpenWindows(): boolean;
+  hasPopoutWindows(): boolean;
   loadUrl(args: LoadDesktopWindowsUrlArgs): Promise<void>;
   openDevTools(): void;
   persistOpenWindows(): Promise<void>;
@@ -225,6 +235,43 @@ export function createDesktopWindowFactory(
 ): DesktopWindowFactory {
   const activeWindows = new Map<WindowStateKey, DesktopBrowserWindow>();
   const pendingStateKeys = new Set<WindowStateKey>();
+  const popoutWindows = new Set<DesktopBrowserWindow>();
+
+  function createConfiguredWindow(bounds: WindowBounds): DesktopBrowserWindow {
+    const browserWindow = args.browserWindowCreator.create(
+      createWindowOptions({
+        backgroundColor: args.shouldUseDarkColors() ? "#151515" : "#ffffff",
+        bounds,
+        icon: args.icon,
+        isLinuxTransparent: args.isLinuxTransparent,
+        isMac: args.isMac,
+        isLinuxFrameless: args.isLinuxFrameless,
+        preloadPath: args.preloadPath,
+      }),
+    );
+    if (!args.isLinuxTransparent) {
+      browserWindow.webContents.on(
+        "did-change-theme-color",
+        (_event, color) => {
+          if (color !== null) {
+            browserWindow.setBackgroundColor(color);
+          }
+        },
+      );
+    }
+    browserWindow.webContents.session.setSpellCheckerEnabled(true);
+    browserWindow.once("ready-to-show", () => {
+      browserWindow.show();
+    });
+    browserWindow.webContents.setWindowOpenHandler((details) => {
+      const url = resolveDesktopExternalUrl(details.url);
+      if (url !== null) {
+        args.openExternalUrl({ url });
+      }
+      return { action: "deny" };
+    });
+    return browserWindow;
+  }
 
   async function createWindow(
     createArgs: CreateDesktopWindowArgs,
@@ -243,28 +290,7 @@ export function createDesktopWindowFactory(
         stateKey,
         userDataPath: args.userDataPath,
       });
-      const browserWindow = args.browserWindowCreator.create(
-        createWindowOptions({
-          backgroundColor: args.shouldUseDarkColors() ? "#151515" : "#ffffff",
-          bounds: restoredState.bounds,
-          icon: args.icon,
-          isLinuxTransparent: args.isLinuxTransparent,
-          isMac: args.isMac,
-          isLinuxFrameless: args.isLinuxFrameless,
-          preloadPath: args.preloadPath,
-        }),
-      );
-      if (!args.isLinuxTransparent) {
-        browserWindow.webContents.on(
-          "did-change-theme-color",
-          (_event, color) => {
-            if (color !== null) {
-              browserWindow.setBackgroundColor(color);
-            }
-          },
-        );
-      }
-      browserWindow.webContents.session.setSpellCheckerEnabled(true);
+      const browserWindow = createConfiguredWindow(restoredState.bounds);
 
       activeWindows.set(stateKey, browserWindow);
 
@@ -275,9 +301,6 @@ export function createDesktopWindowFactory(
         browserWindow.setFullScreen(true);
       }
 
-      browserWindow.once("ready-to-show", () => {
-        browserWindow.show();
-      });
       browserWindow.on("closed", () => {
         activeWindows.delete(stateKey);
         if (!args.isQuitting()) {
@@ -286,13 +309,6 @@ export function createDesktopWindowFactory(
             userDataPath: args.userDataPath,
           });
         }
-      });
-      browserWindow.webContents.setWindowOpenHandler((details) => {
-        const url = resolveDesktopExternalUrl(details.url);
-        if (url !== null) {
-          args.openExternalUrl({ url });
-        }
-        return { action: "deny" };
       });
 
       if (createArgs.initialUrl !== null) {
@@ -306,6 +322,23 @@ export function createDesktopWindowFactory(
     } finally {
       pendingStateKeys.delete(stateKey);
     }
+  }
+
+  async function createPopoutWindow(
+    popoutArgs: CreateDesktopPopoutWindowArgs,
+  ): Promise<DesktopBrowserWindow> {
+    const browserWindow = createConfiguredWindow(popoutArgs.bounds);
+    popoutWindows.add(browserWindow);
+    browserWindow.on("closed", () => {
+      popoutWindows.delete(browserWindow);
+    });
+    try {
+      await loadUrlIntoWindow({ browserWindow, url: popoutArgs.url });
+    } catch (error) {
+      browserWindow.close();
+      throw error;
+    }
+    return browserWindow;
   }
 
   async function restoreSavedWindows(
@@ -336,6 +369,9 @@ export function createDesktopWindowFactory(
   }
 
   async function loadUrl(args: LoadDesktopWindowsUrlArgs): Promise<void> {
+    for (const popoutWindow of popoutWindows) {
+      popoutWindow.close();
+    }
     const loadPromises: Promise<void>[] = [];
     for (const browserWindow of activeWindows.values()) {
       loadPromises.push(
@@ -378,10 +414,14 @@ export function createDesktopWindowFactory(
   }
 
   return {
+    createPopoutWindow,
     createWindow,
     focusFirstWindow,
     hasOpenWindows() {
       return activeWindows.size > 0;
+    },
+    hasPopoutWindows() {
+      return popoutWindows.size > 0;
     },
     loadUrl,
     openDevTools,

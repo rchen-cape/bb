@@ -41,7 +41,7 @@ describe("resolveColor", () => {
 });
 
 describe("decorationCss", () => {
-  it("marks colour important so it beats Monaco's own token rules", () => {
+  it("marks colour important so it beats the editor's own token colours", () => {
     expect(decorationCss({ color: "#FF5555" }, COLORS)).toBe(
       "color:#FF5555 !important",
     );

@@ -1,4 +1,3 @@
-import { fencedCodeLines } from "./fenced-code.js";
 import {
   DEFAULT_REGEX_FLAGS,
   type DecorationStyle,
@@ -19,20 +18,10 @@ export interface CompiledHighlightRule {
   groups: readonly (DecorationStyle | undefined)[];
   /** True when the pattern has no capture groups and `groups[0]` is group 0. */
   wholeMatch: boolean;
-  /**
-   * Skip lines inside a fenced code block.
-   *
-   * Set for the built-in Markdown rules, where a `# comment` in a shell
-   * block is not a heading. Left off for the user's own rules: VS Code's
-   * Highlight extension does mark a TODO inside code, and that is the point
-   * of the imported TODO and FIXME patterns.
-   */
-  skipFencedCode: boolean;
 }
 
 export interface HighlightRange {
   lineNumber: number;
-  /** 1-based, Monaco column convention. */
   startColumn: number;
   endColumn: number;
   style: DecorationStyle;
@@ -102,15 +91,9 @@ function matchesFilter(
   return regex.test(value);
 }
 
-export interface CompileOptions {
-  /** See `CompiledHighlightRule.skipFencedCode`. */
-  skipFencedCode?: boolean;
-}
-
 export function compileHighlightRules(
   settings: NotesSettings,
   document: DocumentIdentity,
-  options: CompileOptions = {},
 ): CompiledHighlightRule[] {
   const configured = settings["highlight.regexes"];
   if (configured === undefined) return [];
@@ -133,7 +116,6 @@ export function compileHighlightRules(
       regex,
       groups: rule.decorations,
       wholeMatch: captureCount === 0,
-      skipFencedCode: options.skipFencedCode === true,
     });
   }
   return compiled;
@@ -154,19 +136,12 @@ export function findHighlightRanges(
   const ranges: HighlightRange[] = [];
   if (rules.length === 0) return ranges;
 
-  // Only paid for when some rule actually cares about fences.
-  const fenced = rules.some((rule) => rule.skipFencedCode)
-    ? fencedCodeLines(lines)
-    : null;
-
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     if (line === undefined || line.length > MAX_SCANNED_LINE_LENGTH) continue;
     const lineNumber = index + 1;
-    const insideFence = fenced?.has(lineNumber) === true;
 
     for (const rule of rules) {
-      if (rule.skipFencedCode && insideFence) continue;
       rule.regex.lastIndex = 0;
       let matches = 0;
       let match: RegExpExecArray | null;

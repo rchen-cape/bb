@@ -28,6 +28,7 @@ import { useDesktopThemeSync } from "./hooks/useDesktopThemeSync";
 import { usePluginFrontendBoot } from "./hooks/usePluginFrontendBoot";
 import { markRouteContentPainted } from "./lib/route-content-paint";
 import { useRememberPluginNavPanelChrome } from "@/lib/plugin-nav-panel-chrome";
+import { isPopoutWindow } from "./lib/popout-window";
 import { useWebSocket } from "./hooks/useWebSocket";
 import {
   AUTH_CALLBACK_ROUTE_PATH,
@@ -44,6 +45,7 @@ import {
   PROJECTLESS_ARCHIVED_ROUTE_PATH,
   LEGACY_PROJECT_SETTINGS_ROUTE_PATH,
   PLUGIN_DETAIL_ROUTE_PATH,
+  PLUGIN_PANEL_ROUTE_PATH,
   PLUGINS_ROUTE_PATH,
   REGISTRY_SKILL_DETAIL_ROUTE_PATH,
   REGISTRY_SKILLS_ROUTE_PATH,
@@ -81,6 +83,7 @@ import { AppUpdateHost } from "./components/app-update/AppUpdateHost";
 import { PluginInstallJobsHost } from "./components/plugin/PluginInstallJobsHost";
 import { RouteLoadingSkeleton } from "./components/ui/route-loading-skeleton";
 import { ThreadTimelineLoadingSkeleton } from "./components/thread/timeline/ThreadTimelineLoadingSkeleton";
+import { PopoutPluginPanelFallback } from "./components/layout/PopoutPluginPanelChrome";
 import {
   startSplitPreloading,
   trackCriticalLoad,
@@ -117,6 +120,14 @@ const splitWorkspaceRouteModule = trackCriticalLoad(
 );
 splitWorkspaceRouteModule.catch(() => {});
 const SplitWorkspaceRoute = lazy(() => splitWorkspaceRouteModule);
+const PopoutPluginPanelLayout = lazy(() =>
+  Promise.all([
+    import("./components/layout/PopoutPluginPanelLayout"),
+    import("./components/plugin/PluginPagePanelHost").then((m) =>
+      m.preloadPluginPagePanelHost(),
+    ),
+  ]).then(([m]) => ({ default: m.PopoutPluginPanelLayout })),
+);
 
 function NavigatePreservingLocation({ pathname }: { pathname: string }) {
   const location = useLocation();
@@ -286,7 +297,8 @@ export function HashNavigationScroll() {
 
 export function AppRoutes() {
   const { isThreadView } = useRouteState();
-  const isRootComposeView = useLocation().pathname === APP_ROOT_ROUTE_PATH;
+  const { pathname } = useLocation();
+  const isRootComposeView = pathname === APP_ROOT_ROUTE_PATH;
   useEffect(() => {
     if (isThreadView) void trackCriticalLoad(LazyThreadDetailView.preload());
   }, [isThreadView]);
@@ -294,6 +306,24 @@ export function AppRoutes() {
     if (isRootComposeView)
       void trackCriticalLoad(LazyRootComposeView.preload());
   }, [isRootComposeView]);
+  const popoutPluginPanelMatch = isPopoutWindow()
+    ? matchPath(PLUGIN_PANEL_ROUTE_PATH, pathname)
+    : null;
+  const popoutPluginId = popoutPluginPanelMatch?.params.pluginId;
+  const popoutPanelPath = popoutPluginPanelMatch?.params.panelPath;
+  if (popoutPluginId && popoutPanelPath) {
+    const popoutRoute = {
+      pluginId: popoutPluginId,
+      panelPath: popoutPanelPath,
+      subPath: popoutPluginPanelMatch?.params["*"] ?? "",
+    };
+    return (
+      <Suspense fallback={<PopoutPluginPanelFallback {...popoutRoute} />}>
+        <PopoutPluginPanelLayout {...popoutRoute} />
+        <RouteContentPaintSignal />
+      </Suspense>
+    );
+  }
   return (
     <AppLayout>
       <Suspense fallback={null}>

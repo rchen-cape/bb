@@ -7,7 +7,6 @@ import {
   useRpc,
   type PluginNavPanelProps,
 } from "@get-bb/plugin-sdk/app";
-import type * as MonacoNs from "monaco-editor";
 import { toast } from "sonner";
 import { cn } from "@bb/shared-ui/lib/utils";
 import { Button } from "@bb/shared-ui/button";
@@ -20,13 +19,6 @@ import {
   DialogTitle,
 } from "@bb/shared-ui/dialog";
 import type { rpcContract } from "./server.js";
-import { loadMonaco, overflowWidgetsNode, setOverflowWidgetsTheme } from "./lib/monaco-loader.js";
-import {
-  applyMarkdownTheme,
-  editorBackground,
-  type WorkbenchColorOverrides,
-} from "./lib/markdown-theme.js";
-import { DecorationController } from "./lib/decoration-controller.js";
 import { NoteAutosave, type SaveState } from "./lib/autosave.js";
 import { expandedFoldersStorageKey } from "./lib/expanded-folders.js";
 import { findDailyNotePath } from "./lib/daily-note.js";
@@ -41,7 +33,12 @@ import {
   IMPORTED_VSCODE_SETTINGS,
   type NotesSettings,
 } from "./lib/vscode-settings.js";
-import { collectHeadings, tocBlock, updateTocBlock } from "./lib/toc.js";
+import {
+  createNoteEditor,
+  type NoteEditor,
+  type NoteEditorConfig,
+} from "./lib/note-editor.js";
+import { refreshWikiTags } from "./lib/wiki-completion.js";
 import { NotesSidebar, type DraftKind } from "./components/NotesSidebar.js";
 import { NotesToolbar, type SaveIndicator } from "./components/NotesToolbar.js";
 
@@ -76,42 +73,10 @@ function reportUnsavedOnLeave(path: string, state: SaveState): void {
   }
 }
 
-/**
- * Reads a CSS custom property through a throwaway element so the browser
- * resolves it (e.g. `oklch(...)`) to an `rgb()` string, then hex-encodes it.
- * Lets the editor's background/foreground track the app's own --canvas/--ink
- * tokens instead of the much darker/brighter ones a syntax theme ships.
- */
-function resolveCssColor(expression: string): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  const probe = document.createElement("span");
-  probe.style.color = expression;
-  probe.style.display = "none";
-  document.body.appendChild(probe);
-  const resolved = getComputedStyle(probe).color;
-  document.body.removeChild(probe);
-  const context = document.createElement("canvas").getContext("2d", {
-    willReadFrequently: true,
-  });
-  if (context === null || resolved === "") return undefined;
-  context.clearRect(0, 0, 1, 1);
-  context.fillStyle = resolved;
-  context.fillRect(0, 0, 1, 1);
-  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
-  if (alpha !== 255) return undefined;
-  const toHex = (value: number) => value.toString(16).padStart(2, "0");
-  return `#${toHex(red)}${toHex(green)}${toHex(blue)}`;
-}
-
-function resolveEditorColorOverrides(): WorkbenchColorOverrides {
-  return {
-    background: resolveCssColor(
-      "color-mix(in oklab, var(--ink) 7%, var(--canvas))",
-    ),
-    // The same `text-foreground` thread messages use.
-    foreground: resolveCssColor("var(--foreground)"),
-  };
-}
+const TOC_TOASTS = {
+  updated: () => toast.success("Table of contents updated"),
+  "no-headings": () => toast.info("This note has no headings to list"),
+} as const;
 
 function NotesPanel({ subPath }: PluginNavPanelProps) {
   const rpc = useRpc<typeof rpcContract>();
@@ -119,28 +84,14 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
   const codeTheme = experimental_useCodeTheme();
   const pluginId = experimental_usePluginId();
 
-  const codeThemeRef = useRef(codeTheme);
-  codeThemeRef.current = codeTheme;
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
 
-  // Re-resolved when the mode flips so --canvas/--ink pick up the right
-  // light/dark value; cheap, so no need to tie it to anything finer-grained.
-  const colorOverrides = useMemo(
-    () => resolveEditorColorOverrides(),
-    [codeTheme.mode],
-  );
-  const colorOverridesRef = useRef(colorOverrides);
-  colorOverridesRef.current = colorOverrides;
-
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const monacoRef = useRef<typeof MonacoNs | null>(null);
-  const editorRef = useRef<MonacoNs.editor.IStandaloneCodeEditor | null>(null);
-  const decorationsRef = useRef<DecorationController | null>(null);
+  const editorRef = useRef<NoteEditor | null>(null);
   const autosaveRef = useRef<NoteAutosave | null>(null);
   const navigationRef = useRef(0);
 
-  /** The route owns which note is open, so a deep link restores it. */
   const activePath = subPath === "" ? null : decodeSubPath(subPath);
   const activePathRef = useRef(activePath);
   activePathRef.current = activePath;
@@ -165,6 +116,19 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     error: string | null;
   }>({ entries: [], truncated: false, isLoading: true, error: null });
 
+  const editorConfig = useMemo<NoteEditorConfig>(
+    () => ({
+      settings,
+      codeTheme: { mode: codeTheme.mode, theme: codeTheme.theme },
+      wordWrap,
+    }),
+    [codeTheme.mode, codeTheme.theme, settings, wordWrap],
+  );
+  const editorConfigRef = useRef(editorConfig);
+  useEffect(() => {
+    editorConfigRef.current = editorConfig;
+  }, [editorConfig]);
+
   const detachAutosave = useCallback((): NoteAutosave | null => {
     const autosave = autosaveRef.current;
     autosaveRef.current = null;
@@ -172,6 +136,13 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
   }, []);
 
   const nodes = useMemo(() => buildTree(tree.entries), [tree.entries]);
+  const entriesRef = useRef<readonly FlatEntry[]>([]);
+  useEffect(() => {
+    entriesRef.current = tree.entries;
+  }, [tree.entries]);
+  const requestOpenRef = useRef<(path: string) => Promise<void>>(
+    async () => undefined,
+  );
 
   const openNote = useCallback(
     (path: string) => {
@@ -204,10 +175,6 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     void refreshTree();
   }, [refreshTree]);
 
-  // With no note selected (entering the panel, or clicking Notes in the
-  // sidebar while already here), open today's note. A delete sets the skip
-  // flag because it clears the selection before the tree refreshes, and the
-  // stale tree could still list the note that was just removed.
   const skipDailyNoteRef = useRef(false);
   useEffect(() => {
     if (tree.isLoading || activePath !== null) return;
@@ -232,13 +199,14 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
         const wrap = result.settings["editor.wordWrap"];
         if (wrap !== undefined) setWordWrap(wrap === "on");
       })
-      .catch(() => {
-        // The imported defaults already cover this; a failed read should not
-        // stop the panel from opening.
-      });
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
+  }, [rpc]);
+
+  useEffect(() => {
+    void refreshWikiTags(rpc);
   }, [rpc]);
 
   const reload = useCallback(async () => {
@@ -253,7 +221,7 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           if (file.kind !== "text") throw new Error(file.reason);
           return file;
         },
-        (content) => editor.setValue(content),
+        (content) => editor.replaceContent(content),
       );
     } catch (error) {
       toast.error(`Could not reload ${activePath}: ${errorText(error)}`);
@@ -262,8 +230,6 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     }
   }, [activePath, rpc]);
 
-  // Boot Monaco and load the open note. Re-runs per note so each gets a
-  // fresh model, which is what keeps undo history from leaking between them.
   useEffect(() => {
     setSaveState({ kind: "clean" });
     if (activePath === null) {
@@ -272,104 +238,54 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     }
     const path = activePath;
     let disposed = false;
-    let linkOpener: MonacoNs.IDisposable | null = null;
     setStatus({ kind: "loading" });
 
     void (async () => {
       try {
         await closingNotes.get(path);
         if (disposed) return;
-        const [{ baseUrl }, file] = await Promise.all([
-          rpc.call("assets", null),
-          rpc.call("read", { path }),
-        ]);
+        const file = await rpc.call("read", { path });
         if (disposed) return;
         if (file.kind === "unsupported") {
           setStatus({ kind: "unsupported", reason: file.reason });
           return;
         }
-
-        const monaco = await loadMonaco(baseUrl);
-        if (disposed) return;
         const container = containerRef.current;
         if (container === null) return;
-        monacoRef.current = monaco;
 
-        const applied = applyMarkdownTheme(
-          monaco,
-          codeThemeRef.current,
-          colorOverridesRef.current,
-        );
-        setOverflowWidgetsTheme(applied.base);
-
-        const editor = monaco.editor.create(container, {
-          value: file.content,
-          language: "markdown",
-          theme: applied.name,
-          automaticLayout: true,
-          wordWrap: wordWrap ? "on" : "off",
-          lineNumbers: settings["editor.lineNumbers"] ?? "on",
-          fontSize: settings["editor.fontSize"] ?? 11,
-          minimap: { enabled: false },
-          scrollBeyondLastLine: false,
-          // Prose, not code: no bracket guides, no occurrence boxes, and a
-          // ruler-free gutter keep a note from reading like source.
-          renderLineHighlight: "none",
-          occurrencesHighlight: "off",
-          bracketPairColorization: { enabled: false },
-          guides: { indentation: false, bracketPairs: false },
-          folding: true,
-          lineHeight: 21,
-          padding: { top: 12, bottom: 24 },
-          quickSuggestions: false,
-          // Monaco's word-based suggestions fire mid-sentence while writing
-          // prose, which is noise rather than help.
-          wordBasedSuggestions: "off",
-          unicodeHighlight: { ambiguousCharacters: false },
-          fixedOverflowWidgets: true,
-          overflowWidgetsDomNode: overflowWidgetsNode(),
+        const editor = createNoteEditor({
+          parent: container,
+          path,
+          content: file.content,
+          config: editorConfigRef.current,
+          wikiTags: rpc,
+          handlers: {
+            onChange: () => autosaveRef.current?.edited(),
+            onBlur: () => void autosaveRef.current?.flush(),
+            onFocus: () => void refreshWikiTags(rpc),
+            onSave: () => void autosaveRef.current?.flush(),
+            openUrl: (href) => navigateRef.current.openUrl(href),
+            openNote: (target) => {
+              const known = entriesRef.current.some(
+                (entry) => entry.kind === "file" && entry.path === target,
+              );
+              if (known) void requestOpenRef.current(target);
+              return known;
+            },
+          },
         });
         editorRef.current = editor;
-        // Cmd/Ctrl+click on a detected link opens it the way the rest of bb
-        // opens URLs, instead of Monaco's bare `window.open`.
-        linkOpener = monaco.editor.registerLinkOpener({
-          open: (resource) => navigateRef.current.openUrl(resource.toString(true)),
+        const autosave: NoteAutosave = new NoteAutosave({
+          document: editor.document,
+          sha256: file.sha256,
+          write: (content, expectedSha256) =>
+            rpc.call("write", { path, content, expectedSha256 }),
+          onStateChange: (state) => {
+            if (autosaveRef.current === autosave) setSaveState(state);
+          },
         });
-        const model = editor.getModel();
-        if (model !== null) {
-          const autosave: NoteAutosave = new NoteAutosave({
-            document: model,
-            sha256: file.sha256,
-            write: (content, expectedSha256) =>
-              rpc.call("write", { path, content, expectedSha256 }),
-            onStateChange: (state) => {
-              if (autosaveRef.current === autosave) setSaveState(state);
-            },
-          });
-          autosaveRef.current = autosave;
-        }
+        autosaveRef.current = autosave;
         setStatus({ kind: "ready" });
-
-        const decorations = new DecorationController(monaco, editor);
-        decorationsRef.current = decorations;
-        decorations.update({
-          settings,
-          themeType: codeThemeRef.current.theme?.type ?? codeThemeRef.current.mode,
-          colors: applied.colors,
-          path,
-        });
-
-        editor.onDidChangeModelContent(() => {
-          autosaveRef.current?.edited();
-          decorationsRef.current?.schedule();
-        });
-        editor.onDidBlurEditorText(() => {
-          void autosaveRef.current?.flush();
-        });
-        editor.addCommand(
-          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-          () => void autosaveRef.current?.flush(),
-        );
       } catch (error) {
         if (disposed) return;
         setStatus({ kind: "error", message: errorText(error) });
@@ -391,50 +307,15 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           });
         closingNotes.set(path, closing);
       }
-      linkOpener?.dispose();
-      decorationsRef.current?.dispose();
-      decorationsRef.current = null;
-      editorRef.current?.getModel()?.dispose();
-      editorRef.current?.dispose();
+      editorRef.current?.destroy();
       editorRef.current = null;
     };
-    // `settings` and `wordWrap` are read for the initial editor options and
-    // applied live by the effects below, so they are deliberately not
-    // dependencies: changing them must not tear down the editor and lose the
-    // user's cursor and undo stack.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePath, detachAutosave, rpc]);
 
   useEffect(() => {
-    const monaco = monacoRef.current;
-    const editor = editorRef.current;
-    if (monaco === null || editor === null) return;
-    const applied = applyMarkdownTheme(monaco, codeTheme, colorOverrides);
-    editor.updateOptions({ theme: applied.name });
-    setOverflowWidgetsTheme(applied.base);
-    if (activePath !== null) {
-      decorationsRef.current?.update({
-        settings,
-        themeType: codeTheme.theme?.type ?? codeTheme.mode,
-        colors: applied.colors,
-        path: activePath,
-      });
-    }
-  }, [activePath, codeTheme, colorOverrides, settings, status]);
+    editorRef.current?.configure(editorConfig);
+  }, [editorConfig, status]);
 
-  useEffect(() => {
-    editorRef.current?.updateOptions({ wordWrap: wordWrap ? "on" : "off" });
-  }, [wordWrap, status]);
-
-  /**
-   * Cmd+S outside the editor.
-   *
-   * Monaco's own binding only fires while the editor has focus, so after
-   * clicking a toolbar button the habitual save did nothing and left the
-   * note dirty with no feedback. This listener runs on the bubble phase, so
-   * a focused editor still handles the key itself and this never
-   * double-saves.
-   */
   useEffect(() => {
     if (activePath === null) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -463,41 +344,18 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
   const insertToc = useCallback(() => {
     const editor = editorRef.current;
     if (editor === null) return;
-    const model = editor.getModel();
-    if (model === null) return;
     const orderedList =
       settings["markdown.extension.toc.orderedList"] === true;
-
-    const current = model.getValue();
-    const updated = updateTocBlock(current, { orderedList });
-    if (updated.replaced) {
-      if (updated.content !== current) {
-        editor.pushUndoStop();
-        editor.executeEdits("notes-toc", [
-          { range: model.getFullModelRange(), text: updated.content },
-        ]);
-        editor.pushUndoStop();
-      }
-      toast.success("Table of contents updated");
+    const outcome = editor.insertToc(orderedList);
+    if (outcome === "inserted") {
+      toast.success(
+        orderedList
+          ? "Numbered table of contents inserted"
+          : "Table of contents inserted",
+      );
       return;
     }
-
-    if (collectHeadings(current.split("\n")).length === 0) {
-      toast.info("This note has no headings to list");
-      return;
-    }
-    const selection = editor.getSelection();
-    if (selection === null) return;
-    editor.pushUndoStop();
-    editor.executeEdits("notes-toc", [
-      { range: selection, text: tocBlock(current, { orderedList }) },
-    ]);
-    editor.pushUndoStop();
-    toast.success(
-      orderedList
-        ? "Numbered table of contents inserted"
-        : "Table of contents inserted",
-    );
+    TOC_TOASTS[outcome]();
   }, [settings]);
 
   useEffect(
@@ -521,6 +379,9 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     },
     [activePath, openNote],
   );
+  useEffect(() => {
+    requestOpenRef.current = requestOpen;
+  }, [requestOpen]);
 
   const create = useCallback(
     async (kind: DraftKind, rawPath: string) => {
@@ -591,8 +452,6 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
     }
   }, [detachAutosave, navigate, pendingDelete, refreshTree, rpc]);
 
-  const background = editorBackground(codeTheme.theme, colorOverrides);
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <NotesToolbar
@@ -647,10 +506,9 @@ function NotesPanel({ subPath }: PluginNavPanelProps) {
           <div
             ref={containerRef}
             className={cn(
-              "min-h-0 flex-1",
+              "flex min-h-0 flex-1 flex-col",
               status.kind === "ready" ? "" : "pointer-events-none opacity-0",
             )}
-            style={background === null ? undefined : { background }}
           />
           {status.kind !== "ready" ? (
             <div className="absolute inset-0 flex items-center justify-center p-6">

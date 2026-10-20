@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A Markdown-only source editor for your ~/Notes directory.",
+  "description": "A live-preview Markdown editor for your ~/Notes directory.",
   "license": "MIT",
   "homepage": "https://github.com/get-bb/bb#readme",
   "bugs": {
@@ -29,7 +29,7 @@
   },
   "bb": {
     "name": "Notes",
-    "description": "A Markdown-only source editor for your ~/Notes directory.",
+    "description": "A live-preview Markdown editor for your ~/Notes directory.",
     "branding": {
       "icon": "FileText"
     },
@@ -45,12 +45,21 @@
   "scripts": {
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build:monaco": "node scripts/stage-assets.mjs",
     "prepare:bundled": "bb-plugin-build prepare-bundled"
   },
   "dependencies": {
     "@bb/shared-ui": "workspace:*",
-    "monaco-editor": "^0.56.0",
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/legacy-modes": "^6.5.2",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@lezer/common": "^1.5.3",
+    "@lezer/highlight": "^1.2.5",
+    "@lezer/markdown": "^1.8.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {
@@ -60,7 +69,6 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "esbuild": "^0.28.0",
     "jsdom": "^29.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

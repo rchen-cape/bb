@@ -45,7 +45,8 @@ Hooks:
 { subPath?, replace? }?), toCompose({ initialPrompt?, focusPrompt? }?),
 openThreadPanel({ actionId, title?, params? }), openUrl(url),
 experimental_openFilePreview(options), experimental_openFileExternally(options),
-experimental_openTerminal({ terminalId }) }`.
+experimental_openTerminal({ terminalId }),
+experimental_openPluginPanelInWindow(path, { subPath? }?) }`.
   `toCompose` opens the root compose screen; pass `initialPrompt` to seed the
   composer draft and `focusPrompt: true` to focus it. The panel
   opener opens one of the current plugin's registered `threadPanelAction` tabs
@@ -62,6 +63,11 @@ experimental_openTerminal({ terminalId }) }`.
   the terminal belongs to another thread, and for the New thread screen when
   it is outside that screen's terminal scope. Plugin pages accept any
   terminal. Closing the tab closes the terminal.
+  `experimental_openPluginPanelInWindow` opens one of the plugin's own nav
+  panels in a separate window that shows only that page, the same path as the
+  rail's "Open in window". It resolves false for a path that is not one of the
+  plugin's nav panels, on compact viewports and the native mobile shell, in a
+  desktop build that cannot open windows, and when the popup is blocked.
 - `useComposer()` → one stable handle for the composer the calling surface
   belongs to: inside a composer slot, that composer; in a thread's panels,
   that thread's composer; elsewhere, the current route's draft. The same

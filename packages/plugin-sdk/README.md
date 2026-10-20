@@ -56,6 +56,13 @@ whether the current surface selected the terminal's tab; thread surfaces accept
 only their own thread's terminals. The harness records the call and accepts an
 `openTerminal` behavior option.
 
+To open one of your own nav panels in a separate window that shows only that
+page, call `useBbNavigate().experimental_openPluginPanelInWindow(path, {
+subPath })`. It resolves false for a path that is not one of your nav panels,
+on compact viewports and the native mobile shell, in a desktop build that
+cannot open windows, and when the popup is blocked. The harness records the
+call and accepts an `openPluginPanelInWindow` behavior option.
+
 A nav panel's `fixedTabs` entries must include the containing nav
 panel's `id` as `panelId`; each entry is also a stable reference to that
 plugin's own tab. Give a targeted tab an `experimental_target.validate` type guard, call

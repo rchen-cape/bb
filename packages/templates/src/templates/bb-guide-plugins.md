@@ -770,9 +770,12 @@ useBbNavigate (including openUrl(url), which applies the current
 client's in-app/external-browser preference, plus
 experimental_openFilePreview({ target, location }) and
 experimental_openFileExternally({ target, location }) for explicit live
-workspace/host/thread-storage files, and experimental_openTerminal({
+workspace/host/thread-storage files, experimental_openTerminal({
 terminalId }), which shows a terminal created with useSdk().terminals.create
-in the current surface's terminal panel), and useComposer (one stable handle for
+in the current surface's terminal panel, and
+experimental_openPluginPanelInWindow(path, { subPath }), which opens one of
+the plugin's own nav panels in a separate window showing only that page and
+resolves false where windows are unavailable), and useComposer (one stable handle for
 the bound composer: read its text, mentions, reactive picker selection, scope, layout, run and submit
 state, and why submitting is blocked; replace/update/clear text; insert text
 and mentions at the cursor or end; apply a class-based text effect, lock input,

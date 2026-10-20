@@ -134,7 +134,13 @@ const ALL_KEYS = [
 const DOCS_PATH = getPluginPanelRoutePath({ pluginId: "garden", path: "docs" });
 const AUTOMATIONS_PLUGIN_PANEL_PATH = "automations";
 
-function RailHarness({ useLayout = false }: { useLayout?: boolean }) {
+function RailHarness({
+  splitEnabled = false,
+  useLayout = false,
+}: {
+  splitEnabled?: boolean;
+  useLayout?: boolean;
+}) {
   const closeMobileSidebar = useCloseMobileSidebar();
   const location = useLocation();
   const isSettings = location.pathname.startsWith(SETTINGS_ROUTE_PATH);
@@ -144,7 +150,7 @@ function RailHarness({ useLayout = false }: { useLayout?: boolean }) {
     <SidebarNavigationModelProvider
       onNavigate={mocks.onNavigate}
       onNewChat={mocks.onNewChat}
-      splitEnabled={false}
+      splitEnabled={splitEnabled}
     >
       {useLayout ? (
         <>
@@ -181,6 +187,7 @@ function renderRail(
     visibleKeys?: string[];
     isCompactViewport?: boolean;
     isFramed?: boolean;
+    splitEnabled?: boolean;
     useLayout?: boolean;
   } = {},
 ) {
@@ -197,7 +204,10 @@ function renderRail(
         >
           <TooltipProvider>
             <SidebarProvider framed={options.isFramed ?? false}>
-              <RailHarness useLayout={options.useLayout} />
+              <RailHarness
+                splitEnabled={options.splitEnabled}
+                useLayout={options.useLayout}
+              />
             </SidebarProvider>
           </TooltipProvider>
         </CompactViewportOverrideProvider>
@@ -240,6 +250,12 @@ function currentRailLabels(): (string | null)[] {
 
 function pathname(): string | null {
   return screen.getByTestId("pathname").textContent;
+}
+
+function menuItemLabels(menu: HTMLElement): (string | null)[] {
+  return within(menu)
+    .getAllByRole("menuitem")
+    .map((item) => item.textContent);
 }
 
 beforeAll(async () => {
@@ -467,6 +483,88 @@ describe("AppNavRail", () => {
     expect(railButton("Docs")).toBeDefined();
     expect(accessoryMounted).not.toHaveBeenCalled();
     expect(rail().textContent).not.toContain("492/1");
+  });
+
+  it("offers Open in window between Open in split and View details in a plugin panel's menu", async () => {
+    renderRail(THREAD_PATH, { splitEnabled: true });
+
+    fireEvent.contextMenu(railButton("Docs"));
+    const menu = await screen.findByRole("menu", {
+      name: "Docs panel options",
+    });
+
+    expect(menuItemLabels(menu)).toEqual([
+      "Open in split",
+      "Open in window",
+      "View details",
+      "Hide from rail",
+      "Customize rail",
+      "Disable",
+    ]);
+  });
+
+  it("offers Open in window when split is unavailable", async () => {
+    renderRail(THREAD_PATH);
+
+    fireEvent.contextMenu(railButton("Docs"));
+    const menu = await screen.findByRole("menu", {
+      name: "Docs panel options",
+    });
+
+    expect(menuItemLabels(menu).slice(0, 2)).toEqual([
+      "Open in window",
+      "View details",
+    ]);
+  });
+
+  it("keeps Open in window out of built-in destinations", async () => {
+    renderRail(THREAD_PATH);
+
+    fireEvent.contextMenu(railButton("Plugins"));
+    const menu = await screen.findByRole("menu", { name: "Plugins options" });
+
+    expect(menuItemLabels(menu)).toEqual(["Hide from rail", "Customize rail"]);
+  });
+
+  it("keeps Open in window out of a compact viewport", async () => {
+    renderRail(THREAD_PATH, { isCompactViewport: true });
+
+    fireEvent.contextMenu(railButton("Docs"));
+    const menu = await screen.findByRole("menu", {
+      name: "Docs panel options",
+    });
+
+    expect(menuItemLabels(menu)).not.toContain("Open in window");
+    expect(menuItemLabels(menu)).toContain("View details");
+  });
+
+  it("disables Open in window until a remembered plugin panel registers", async () => {
+    resetPluginSlotStoreForTest();
+    resetPluginFrontendBootStateForTest();
+    writeLastKnownPluginNavPanelChrome([
+      {
+        pluginId: "demo",
+        id: "board",
+        path: "board",
+        title: "Demo board",
+        icon: "columns",
+      },
+    ]);
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    renderRail(THREAD_PATH);
+
+    try {
+      fireEvent.contextMenu(railButton("Demo board"));
+      const item = await screen.findByRole("menuitem", {
+        name: "Open in window",
+      });
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(item);
+
+      expect(open).not.toHaveBeenCalled();
+    } finally {
+      open.mockRestore();
+    }
   });
 
   it("keeps hidden destinations out of the rail", () => {

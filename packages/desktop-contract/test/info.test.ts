@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { bbDesktopInfoSchema } from "../src/info.js";
+import {
+  BB_DESKTOP_MAX_POPOUT_WINDOW_PATH_LENGTH,
+  bbDesktopInfoSchema,
+  bbDesktopPopoutWindowRequestSchema,
+} from "../src/info.js";
 
 const baseInfo = {
   lastCheckedAt: null,
@@ -53,5 +57,41 @@ describe("bbDesktopInfoSchema", () => {
         platform: "win32",
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("bbDesktopPopoutWindowRequestSchema", () => {
+  it.each([
+    "/plugins/notes/notes?bbWindow=popout",
+    `/${"a".repeat(BB_DESKTOP_MAX_POPOUT_WINDOW_PATH_LENGTH - 1)}`,
+  ])("accepts the absolute path %#", (path) => {
+    expect(bbDesktopPopoutWindowRequestSchema.parse({ path })).toEqual({
+      path,
+    });
+  });
+
+  it.each([
+    { name: "a missing path", request: {} },
+    { name: "an empty path", request: { path: "" } },
+    { name: "a relative path", request: { path: "plugins/notes/notes" } },
+    {
+      name: "an absolute URL",
+      request: { path: "https://bb.invalid/plugins/notes/notes" },
+    },
+    { name: "a non-string path", request: { path: 1 } },
+    {
+      name: "a path over the length limit",
+      request: {
+        path: `/${"a".repeat(BB_DESKTOP_MAX_POPOUT_WINDOW_PATH_LENGTH)}`,
+      },
+    },
+    {
+      name: "unknown fields",
+      request: { path: "/plugins/notes/notes", url: "https://bb.invalid/" },
+    },
+  ])("rejects $name", ({ request }) => {
+    expect(bbDesktopPopoutWindowRequestSchema.safeParse(request).success).toBe(
+      false,
+    );
   });
 });

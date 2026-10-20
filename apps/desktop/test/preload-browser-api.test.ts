@@ -45,6 +45,7 @@ import {
   BB_DESKTOP_FOCUS_WINDOW_CHANNEL,
   BB_DESKTOP_GET_WINDOW_STATE_CHANNEL,
   BB_DESKTOP_OPEN_NEW_TAB_CHANNEL,
+  BB_DESKTOP_OPEN_POPOUT_WINDOW_CHANNEL,
   BB_DESKTOP_OPEN_SERVER_DAEMON_LOGS_CHANNEL,
   BB_DESKTOP_WINDOW_STATE_CHANGED_CHANNEL,
 } from "../src/desktop-window-command-ipc.js";
@@ -74,10 +75,12 @@ const electronMock = vi.hoisted(() => {
     isFullScreen: false,
   };
   const invokeCalls: string[] = [];
+  const invokeRequests: SendCall[] = [];
   const listeners = new Map<string, IpcRendererListener>();
   const sendCalls: SendCall[] = [];
   let exposedApi: BbDesktopApi | null = null;
   let exposedName: string | null = null;
+  let popoutWindowReply: unknown = true;
   let zoomFactor = 1;
 
   return {
@@ -88,15 +91,21 @@ const electronMock = vi.hoisted(() => {
       return exposedName;
     },
     invokeCalls,
+    invokeRequests,
     listeners,
     sendCalls,
     reset(): void {
       exposedApi = null;
       exposedName = null;
       invokeCalls.length = 0;
+      invokeRequests.length = 0;
       listeners.clear();
+      popoutWindowReply = true;
       sendCalls.length = 0;
       zoomFactor = 1;
+    },
+    setPopoutWindowReply(reply: unknown): void {
+      popoutWindowReply = reply;
     },
     setZoomFactor(nextZoomFactor: number): void {
       zoomFactor = nextZoomFactor;
@@ -110,8 +119,12 @@ const electronMock = vi.hoisted(() => {
       },
     },
     ipcRenderer: {
-      invoke(channel: string): Promise<unknown> {
+      invoke(channel: string, payload?: unknown): Promise<unknown> {
         invokeCalls.push(channel);
+        invokeRequests.push({ channel, payload });
+        if (channel === "bb-desktop:open-popout-window") {
+          return Promise.resolve(popoutWindowReply);
+        }
         if (channel === "bb-desktop:get-server-choices")
           return Promise.resolve([
             { id: "builtin", name: "Local", active: true },
@@ -585,6 +598,43 @@ describe("desktop preload browser API", () => {
     });
     expect(api.serverDaemonLogsAvailable).toBe(true);
   });
+
+  it("forwards only the pop-out path and returns main's boolean reply", async () => {
+    const request = {
+      path: "/plugins/notes/notes?bbWindow=popout",
+      url: "https://evil.invalid/",
+    };
+    await expect(api.openPopoutWindow?.(request)).resolves.toBe(true);
+    electronMock.setPopoutWindowReply(false);
+    await expect(
+      api.openPopoutWindow?.({ path: "/plugins/notes/notes" }),
+    ).resolves.toBe(false);
+
+    expect(
+      electronMock.invokeRequests.filter(
+        ({ channel }) => channel === BB_DESKTOP_OPEN_POPOUT_WINDOW_CHANNEL,
+      ),
+    ).toEqual([
+      {
+        channel: BB_DESKTOP_OPEN_POPOUT_WINDOW_CHANNEL,
+        payload: { path: "/plugins/notes/notes?bbWindow=popout" },
+      },
+      {
+        channel: BB_DESKTOP_OPEN_POPOUT_WINDOW_CHANNEL,
+        payload: { path: "/plugins/notes/notes" },
+      },
+    ]);
+  });
+
+  it.each([undefined, null, "true", 1, { opened: true }])(
+    "rejects a non-boolean pop-out reply (%j)",
+    async (reply) => {
+      electronMock.setPopoutWindowReply(reply);
+      await expect(
+        api.openPopoutWindow?.({ path: "/plugins/notes/notes" }),
+      ).rejects.toThrow();
+    },
+  );
 
   it("answers unhandled close-window requests so main closes the window", () => {
     emitIpcPayload({

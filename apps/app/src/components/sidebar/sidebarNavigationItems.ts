@@ -48,6 +48,7 @@ export interface SidebarNavigationItem {
 export interface SidebarNavigationActions {
   activate(itemId: string, options: { openInSplit: boolean }): void;
   setVisible(itemId: string, isVisible: boolean): void;
+  openInWindow(itemId: string): void;
   openDetails(itemId: string): void;
   disablePlugin(itemId: string): Promise<void>;
 }

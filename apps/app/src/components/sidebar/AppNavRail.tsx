@@ -38,6 +38,7 @@ import {
   MACOS_WINDOW_DRAG_CLASS,
   shouldUseMacosDesktopChrome,
 } from "@/lib/bb-desktop";
+import { canOpenPluginPanelWindow } from "@/lib/plugin-panel-window";
 import { getRootComposeRoutePath } from "@/lib/route-paths";
 import { NAV_RAIL_WIDTH_CLASS } from "./navRailWidth";
 import { SidebarNavigationCustomize } from "./SidebarNavigationCustomize";
@@ -111,8 +112,12 @@ function RailItem({
 }) {
   const { activeItemId, actions } = useSidebarNavigation();
   const split = useSidebarNavigationSplit(item.id);
+  const isCompactViewport = useIsCompactViewport();
   const [disablePending, setDisablePending] = useState(false);
   const isPluginItem = item.pluginId !== null;
+  const canOpenInWindow =
+    item.action.kind === "open-plugin-panel" &&
+    canOpenPluginPanelWindow({ isCompact: isCompactViewport });
 
   return (
     <ContextMenu>
@@ -159,6 +164,15 @@ function RailItem({
               >
                 <Icon name="Columns2" aria-hidden="true" />
                 Open in split
+              </ContextMenuItem>
+            ) : null}
+            {canOpenInWindow ? (
+              <ContextMenuItem
+                disabled={item.isLoading}
+                onSelect={() => actions.openInWindow(item.id)}
+              >
+                <Icon name="AppWindow" aria-hidden="true" />
+                Open in window
               </ContextMenuItem>
             ) : null}
             <ContextMenuItem onSelect={() => actions.openDetails(item.id)}>

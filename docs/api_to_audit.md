@@ -1592,6 +1592,54 @@ New thread screen, and plugin page rules.
 4. Decide whether a nav panel should also declare a default terminal scope so
    the native "+ Terminal" button follows the page's worktree.
 
+## Plugin panel windows (`BbNavigate.experimental_openPluginPanelInWindow`)
+
+**What it does.** Opens one of the calling plugin's own nav panels, by `path`
+and optional `subPath`, in a separate window that shows only that page: no
+rail, sidebar, or split workspace. The opener adds `?bbWindow=popout` to the
+panel route; the new window moves the flag into session storage, strips it
+from the URL, and renders the page-only layout while it stays on a plugin
+panel route, falling back to the full layout on other routes. A pop-out never
+writes the shared layout defaults other windows start from. The desktop build
+opens a 960x800 window through `BbDesktopApi.openPopoutWindow`, which checks
+the sender and a same-origin path, centers the window on its opener (offset
+32 px down and right, kept inside that display's work area), never restores
+it on relaunch, and closes it when the app reloads every window to a new URL.
+Pop-outs ignore server thread-open and pane-action broadcasts, and the desktop
+menu's New Thread and Settings commands go to a standard window. The web build
+opens a `window.open` popup and clears its opener. It resolves false for a
+path that is not one of the plugin's registered nav panels, for a `subPath`
+that resolves outside that panel's route, on compact viewports and in the
+native mobile shell, in a desktop
+build without `openPopoutWindow` (it never falls back to `window.open` there),
+and when the popup is blocked or the desktop shell declines.
+
+**Core callers.** The nav rail's plugin page menu item ("Open in window" in
+`RailItem`, through `SidebarNavigationActions.openInWindow`) and this API both
+call `openPluginPanelInWindow` in `apps/app/src/lib/plugin-panel-window.ts`,
+which owns the availability rules, the registration check, and the desktop or
+web dispatch. `plugin-panel-window.test.tsx` runs one contract table against
+the rail item and the SDK.
+
+**Audit before stabilizing.**
+
+1. Decide window identity and reuse: whether opening the same panel twice
+   focuses the existing pop-out instead of adding another, and whether
+   pop-outs need a stable id plugins or the shell can address.
+2. Confirm the mode lifetime: the session-storage flag survives reloads and
+   in-window navigation, and routes off plugin panels fall back to the full
+   layout. Decide whether leaving the plugin route should end pop-out mode.
+3. Decide whether pop-outs should be restored on relaunch, and how they
+   interact with the window layout persisted for the main window.
+4. Confirm the chrome: window title, macOS title bar and traffic-light
+   spacing, and whether the page header keeps title-bar actions and
+   breadcrumbs.
+5. Decide whether a boolean result is enough or callers need a reason (blocked,
+   unavailable, unregistered) or a handle to the opened window.
+6. Decide whether this should be a `toPluginPanel` option (`{ window: true }`)
+   rather than a separate method.
+7. Add the missing `bb` CLI surface for opening a plugin page in a window.
+
 ## Host plugin foundation (`bb.hosts.experimental_client`, `ExperimentalHostClient.experimental_onWorkerExit`, `ExperimentalHostClient.experimental_onSignal`, `ExperimentalHostRpcContext.experimental_retainWorker`, `experimental_defineHostEntry`, `experimental_killProcessesWithCwdUnder`, `experimental_readProcessIdentity`, and `experimental_createHostEntryHarness`)
 
 **Kept experimental (2026-08-22).** signals and watches have no consumer (decide whether to delete them or keep them experimental separately from calls), none of the lifetime/limit numbers has been measured against a plugin other than keep-awake, and the artifact-contract names (`experimental_apiVersion`, `experimental_signals`, the injected context members) are read by the daemon from installed artifacts, so renaming them needs a dual-name window plus a protocol bump.

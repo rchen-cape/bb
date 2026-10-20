@@ -3,7 +3,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTabScopedStorage } from "./browser-storage";
 
+const popoutWindow = vi.hoisted(() => ({ isPopout: false }));
+
+vi.mock("./popout-window", () => ({
+  isPopoutWindow: () => popoutWindow.isPopout,
+}));
+
 beforeEach(() => {
+  popoutWindow.isPopout = false;
   window.localStorage.clear();
   window.sessionStorage.clear();
 });
@@ -56,5 +63,21 @@ describe("tab-scoped selection storage", () => {
     expect(window.localStorage.getItem("selection")).toBe("mine");
     expect(() => storage.removeItem("selection")).not.toThrow();
     expect(window.localStorage.getItem("selection")).toBeNull();
+  });
+
+  it("keeps a pop-out window's changes out of the defaults other windows start from", () => {
+    window.localStorage.setItem("selection", "seed");
+    popoutWindow.isPopout = true;
+    const storage = selectionStorage();
+
+    expect(storage.getItem("selection", "fallback")).toBe("seed");
+    storage.setItem("selection", "popout");
+    expect(window.sessionStorage.getItem("selection")).toBe("popout");
+    expect(window.localStorage.getItem("selection")).toBe("seed");
+    expect(selectionStorage().getItem("selection", "fallback")).toBe("popout");
+
+    storage.removeItem("selection");
+    expect(window.sessionStorage.getItem("selection")).toBeNull();
+    expect(window.localStorage.getItem("selection")).toBe("seed");
   });
 });
