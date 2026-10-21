@@ -148,6 +148,16 @@ describe("headings", () => {
     expect(classes[4]).toEqual(["cm-lp-h2", "cm-lp-heading"]);
     expect(classes[5]).toEqual(["cm-lp-setext-mark"]);
   });
+
+  it("keeps a lone dash being typed under text from becoming a heading", () => {
+    for (const doc of ["@tag\n-", "@tag\n- "]) {
+      const classes = lineClasses(build(doc, doc.length));
+      expect(classes[1]).toBeUndefined();
+      expect(classes[2]).toBeUndefined();
+    }
+    const away = lineClasses(build("@tag\n-\n\nx", 0));
+    expect(away[1]).toEqual(["cm-lp-h2", "cm-lp-heading"]);
+  });
 });
 
 describe("inline marks", () => {
@@ -341,7 +351,7 @@ describe("block constructs", () => {
       widgets(built)
         .filter((widget) => widget.name === "BulletWidget")
         .map((widget) => widget.text),
-    ).toEqual(["-", "-", "-"]);
+    ).toEqual(["- ", "- ", "- "]);
     expect(
       widgetOf(built.inline, BulletWidget).map((widget) => widget.symbol),
     ).toEqual(["•", "◦", "▪"]);
@@ -357,6 +367,26 @@ describe("block constructs", () => {
         widgets(built).filter((widget) => widget.name !== "IndentWidget"),
       ).toHaveLength(2);
     }
+  });
+
+  it("hangs wrapped list text under the item text", () => {
+    const built = build("- a\n  - b\n- [ ] c\n1. d\n> - e\n\nz");
+    const hangs = built.inline.flatMap((range) =>
+      range.kind === "line" && range.className === "cm-lp-list-line"
+        ? [
+            [
+              built.state.doc.lineAt(range.from).number,
+              range.attributes?.style,
+            ],
+          ]
+        : [],
+    );
+    expect(hangs).toEqual([
+      [1, "--lp-hang: 1.4em"],
+      [2, "--lp-hang: 2.9em"],
+      [3, "--lp-hang: 1.7em"],
+      [4, "--lp-hang: 1.4em"],
+    ]);
   });
 
   it("renders nested list indentation as fixed-width indents", () => {
@@ -382,8 +412,8 @@ describe("block constructs", () => {
   it("styles ordered list marks without hiding them", () => {
     const built = build("1. first\n2. second\n\nz");
     expect(marks(built, "cm-lp-list-mark").map((mark) => mark.text)).toEqual([
-      "1.",
-      "2.",
+      "1. ",
+      "2. ",
     ]);
     expect(widgets(built)).toEqual([]);
   });
@@ -392,8 +422,8 @@ describe("block constructs", () => {
     const doc = "- [ ] todo\n- [x] done\n\nz";
     const built = build(doc);
     expect(widgets(built)).toEqual([
-      { name: "CheckboxWidget", text: "- [ ]" },
-      { name: "CheckboxWidget", text: "- [x]" },
+      { name: "CheckboxWidget", text: "- [ ] " },
+      { name: "CheckboxWidget", text: "- [x] " },
     ]);
     expect(
       widgetOf(built.inline, CheckboxWidget).map((widget) => widget.checked),
@@ -402,18 +432,18 @@ describe("block constructs", () => {
       "done",
     ]);
     expect(widgets(build(doc, 3)).map((widget) => widget.text)).toEqual([
-      "- [x]",
+      "- [x] ",
     ]);
     expect(widgets(build(doc, 5)).map((widget) => widget.text)).toEqual([
-      "- [x]",
+      "- [x] ",
     ]);
     expect(widgets(build(doc, 6)).map((widget) => widget.text)).toEqual([
-      "- [ ]",
-      "- [x]",
+      "- [ ] ",
+      "- [x] ",
     ]);
     expect(widgets(build(doc, 10)).map((widget) => widget.text)).toEqual([
-      "- [ ]",
-      "- [x]",
+      "- [ ] ",
+      "- [x] ",
     ]);
   });
 

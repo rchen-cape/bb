@@ -112,6 +112,7 @@ export type LivePreviewRange =
       readonly from: number;
       readonly to: number;
       readonly className: string;
+      readonly attributes: Readonly<Record<string, string>> | null;
     }
   | {
       readonly kind: "mark";
@@ -191,13 +192,18 @@ class RangeBuilder {
     return pos < line.to && isSpace(this.text(pos, pos + 1)) ? pos + 1 : pos;
   }
 
-  line(pos: number, className: string): void {
+  line(
+    pos: number,
+    className: string,
+    attributes: Readonly<Record<string, string>> | null = null,
+  ): void {
     const line = this.state.doc.lineAt(pos);
     this.push(`l${line.from}:${className}`, {
       kind: "line",
       from: line.from,
       to: line.from,
       className,
+      attributes,
     });
   }
 
@@ -309,6 +315,12 @@ function addSetextHeading(
   if (underline === undefined) return;
   const doc = b.state.doc;
   const underlineLine = doc.lineAt(underline.from);
+  // A lone "-" being typed is usually a list item in progress, not a heading.
+  if (
+    underlineLine.text.trim() === "-" &&
+    b.touched(underlineLine.from, underlineLine.to)
+  )
+    return;
   if (underlineLine.from > node.from) {
     b.lines(node.from, underlineLine.from - 1, `cm-lp-heading cm-lp-h${level}`);
   }
@@ -316,16 +328,21 @@ function addSetextHeading(
     b.line(underlineLine.from, "cm-lp-setext-mark");
 }
 
+const INDENT_EM = 1.5;
+const BULLET_EM = 1.4;
+const CHECKBOX_EM = 1.7;
+
 function addListIndent(
   b: RangeBuilder,
   node: SyntaxNode,
   mark: SyntaxNode,
-): void {
+): number | null {
   const line = b.state.doc.lineAt(mark.from);
-  if (mark.from <= line.from || b.text(line.from, mark.from).trim() !== "")
-    return;
+  if (b.text(line.from, mark.from).trim() !== "") return null;
+  if (mark.from <= line.from) return 0;
   const level = listDepth(node) - 1;
   if (level > 0) b.widget(line.from, mark.from, new IndentWidget(level));
+  return Math.max(level, 0);
 }
 
 function quoteDepth(node: SyntaxNode): number {
@@ -340,31 +357,45 @@ function quoteDepth(node: SyntaxNode): number {
   return depth;
 }
 
+// Wrapped lines of a list item line up under its text, not under the bullet.
+function addListHang(
+  b: RangeBuilder,
+  node: SyntaxNode,
+  level: number | null,
+  markerEm: number,
+): void {
+  if (level === null || quoteDepth(node) > 0) return;
+  const hang = level * INDENT_EM + markerEm;
+  b.line(node.from, "cm-lp-list-line", { style: `--lp-hang: ${hang}em` });
+}
+
 function addListItem(b: RangeBuilder, node: SyntaxNode): void {
   const mark = node.getChild("ListMark");
   if (mark === null) return;
-  addListIndent(b, node, mark);
+  const level = addListIndent(b, node, mark);
   const ordered = node.parent?.name === "OrderedList";
   const task = node.getChild("Task");
   const taskMarker = task?.getChild("TaskMarker") ?? null;
   if (task !== null && taskMarker !== null) {
     const checked =
       b.text(taskMarker.from + 1, taskMarker.from + 2).toLowerCase() === "x";
-    if (checked)
-      b.mark(b.spaceAfter(taskMarker.to), task.to, "cm-lp-task-done");
+    const contentStart = b.spaceAfter(taskMarker.to);
+    if (checked) b.mark(contentStart, task.to, "cm-lp-task-done");
     b.line(mark.from, "cm-lp-task-line");
+    addListHang(b, node, level, CHECKBOX_EM);
     if (!b.touched(mark.from, taskMarker.to))
-      b.widget(mark.from, taskMarker.to, new CheckboxWidget(checked));
+      b.widget(mark.from, contentStart, new CheckboxWidget(checked));
     return;
   }
+  addListHang(b, node, level, BULLET_EM);
   if (ordered) {
-    b.mark(mark.from, mark.to, "cm-lp-list-mark");
+    b.mark(mark.from, b.spaceAfter(mark.to), "cm-lp-list-mark");
     return;
   }
   if (!b.touched(mark.from, mark.to)) {
     b.widget(
       mark.from,
-      mark.to,
+      b.spaceAfter(mark.to),
       new BulletWidget(bulletSymbol(listDepth(node))),
     );
   }
@@ -687,7 +718,12 @@ function markDecoration(
   return known;
 }
 
-function lineDecoration(className: string): Decoration {
+function lineDecoration(
+  className: string,
+  attributes: Readonly<Record<string, string>> | null,
+): Decoration {
+  if (attributes !== null)
+    return Decoration.line({ class: className, attributes: { ...attributes } });
   let known = lineCache.get(className);
   if (known === undefined) {
     known = Decoration.line({ class: className });
@@ -703,7 +739,9 @@ export function toDecorationSet(
   for (const range of ranges) {
     switch (range.kind) {
       case "line":
-        built.push(lineDecoration(range.className).range(range.from));
+        built.push(
+          lineDecoration(range.className, range.attributes).range(range.from),
+        );
         break;
       case "mark":
         built.push(

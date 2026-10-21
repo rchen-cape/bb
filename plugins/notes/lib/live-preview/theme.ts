@@ -199,17 +199,27 @@ export function livePreviewTheme(
         backgroundPosition: "1em 0",
         backgroundRepeat: "no-repeat",
       },
+      ".cm-lp-list-line": {
+        paddingLeft: "calc(2px + var(--lp-hang))",
+        textIndent: "calc(-1 * var(--lp-hang))",
+      },
+      ".cm-lp-list-line *": { textIndent: "0" },
       ".cm-lp-indent": { display: "inline-block" },
       ".cm-lp-bullet": {
         display: "inline-block",
         width: "1.1em",
+        marginRight: "0.3em",
         textAlign: "center",
         color: "var(--muted-foreground)",
       },
-      ".cm-lp-list-mark": { color: "var(--muted-foreground)" },
+      ".cm-lp-list-mark": {
+        display: "inline-block",
+        minWidth: "1.4em",
+        color: "var(--muted-foreground)",
+      },
       ".cm-lp-checkbox-wrap": {
         display: "inline-block",
-        width: "1.4em",
+        width: "1.7em",
         textAlign: "left",
       },
       ".cm-lp-checkbox": {
