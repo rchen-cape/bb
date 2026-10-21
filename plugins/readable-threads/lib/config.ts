@@ -6,6 +6,8 @@ export interface ReadableThreadsConfig {
   styling: boolean;
   intensity: Intensity;
   keywordHighlights: boolean;
+  dimNarration: boolean;
+  clickToCopy: boolean;
   customKeywords: readonly string[];
   todoColor: string;
 }
@@ -39,6 +41,8 @@ export function defaultConfig(
     styling: true,
     intensity: "subtle",
     keywordHighlights: true,
+    dimNarration: true,
+    clickToCopy: true,
     customKeywords: [],
     todoColor: FALLBACK_TODO_COLOR[mode],
   };
@@ -59,6 +63,8 @@ export function readConfig(
     styling: bool("styling", defaults.styling),
     intensity: intensity === "bold" ? "bold" : "subtle",
     keywordHighlights: bool("keywordHighlights", defaults.keywordHighlights),
+    dimNarration: bool("dimNarration", defaults.dimNarration),
+    clickToCopy: bool("clickToCopy", defaults.clickToCopy),
     customKeywords: typeof keywords === "string" ? parseKeywords(keywords) : [],
     todoColor: resolveTodoColor(codeTheme),
   };
@@ -72,6 +78,8 @@ export function sameConfig(
     a.styling === b.styling &&
     a.intensity === b.intensity &&
     a.keywordHighlights === b.keywordHighlights &&
+    a.dimNarration === b.dimNarration &&
+    a.clickToCopy === b.clickToCopy &&
     a.todoColor === b.todoColor &&
     a.customKeywords.length === b.customKeywords.length &&
     a.customKeywords.every(

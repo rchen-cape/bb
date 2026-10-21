@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import {
   definePluginApp,
+  experimental_copyToClipboard,
   experimental_useCodeTheme,
   useSettings,
 } from "@get-bb/plugin-sdk/app";
@@ -10,6 +11,7 @@ import {
   readConfig,
   type ReadableThreadsConfig,
 } from "./lib/config.js";
+import { startClickToCopy } from "./lib/click-to-copy.js";
 import { startHighlighter } from "./lib/highlighter.js";
 import { buildStylesheet } from "./lib/styles.js";
 
@@ -42,9 +44,15 @@ export default definePluginApp((app) => {
         document,
         highlighterOptions(initial),
       );
+      const clickToCopy = startClickToCopy(
+        document,
+        (text) => experimental_copyToClipboard({ text }),
+        initial.clickToCopy,
+      );
       const unsubscribe = configStore.subscribe((config) => {
         style.textContent = buildStylesheet(config);
         highlighter.update(highlighterOptions(config));
+        clickToCopy.setEnabled(config.clickToCopy);
       });
 
       let disposed = false;
@@ -52,6 +60,7 @@ export default definePluginApp((app) => {
         if (disposed) return;
         disposed = true;
         unsubscribe();
+        clickToCopy.dispose();
         highlighter.dispose();
         style.remove();
       };

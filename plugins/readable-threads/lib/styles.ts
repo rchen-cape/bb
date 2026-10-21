@@ -2,13 +2,19 @@ import type { ReadableThreadsConfig } from "./config.js";
 import { HIGHLIGHT_KINDS, type HighlightKind } from "./rules.js";
 
 export const HIGHLIGHT_NAME_PREFIX = "readable-threads-";
+export const COPIED_HIGHLIGHT_NAME = `${HIGHLIGHT_NAME_PREFIX}copied`;
 
 export function highlightName(kind: HighlightKind): string {
   return `${HIGHLIGHT_NAME_PREFIX}${kind}`;
 }
 
 const MESSAGE = ":where([data-message-column])";
-const ASSISTANT = ":where([data-message-column]:not(:has(> .ml-auto)))";
+const USER_ROW =
+  '[data-timeline-row-id*=":user-seed:"], [data-timeline-row-id*=":provider-input:"]';
+const NARRATION_ROW = `:where([data-timeline-row-id*=":assistant:"]:is(:has(+ [data-timeline-row-id]:not(${USER_ROW})), :has(+ :not([data-timeline-row-id]) + [data-timeline-row-id]:not(${USER_ROW}))))`;
+const REASONING_TEXT =
+  ':where([data-timeline-row-id*=":op:reasoning:"]) :where(.whitespace-pre-wrap)';
+const INLINE_CODE = `${MESSAGE} :where(:not(pre) > code)`;
 const USER_BUBBLE =
   ":where([data-message-column] > .ml-auto > div:last-child > div:first-child)";
 const CODE_BLOCK = `${MESSAGE} :where(div:has(> pre.bb-code-highlight))`;
@@ -70,7 +76,7 @@ ${MESSAGE} :where(blockquote) {
 ${MESSAGE} :where(li)::marker {
   color: ${mix(accent, 80, "var(--muted-foreground)")};
 }
-${MESSAGE} :where(:not(pre) > code) {
+${INLINE_CODE} {
   color: ${mix(accent, bold ? 60 : 45, "var(--foreground)")};
   background: ${mix(accent, tint)};
   box-shadow: inset 0 0 0 1px ${mix(accent, tint + 6)};
@@ -91,10 +97,6 @@ ${CODE_BLOCK}:where(:has(> pre > code.language-diff)) {
 ${CODE_BLOCK} > :where(div:first-child) > :where(span:first-child) {
   color: var(--readable-threads-code-accent);
   font-weight: 600;
-}
-${ASSISTANT} {
-  border-left: 2px solid ${mix(accent, bold ? 55 : 35)};
-  padding-left: 0.75rem;
 }
 ${USER_BUBBLE} {
   border-color: ${mix(accent, bold ? 45 : 30)};
@@ -153,12 +155,41 @@ function highlightRules(bold: boolean): string {
   }).join("\n");
 }
 
+function dimRules(bold: boolean): string {
+  return `
+${NARRATION_ROW} :where([data-message-column]) {
+  opacity: ${bold ? 0.5 : 0.62};
+  transition: opacity 150ms ease-out;
+}
+${NARRATION_ROW} :where([data-message-column]:hover, [data-message-column]:focus-within) {
+  opacity: 1;
+}
+${REASONING_TEXT} {
+  opacity: ${bold ? 0.6 : 0.72};
+}
+`;
+}
+
+function clickToCopyRules(): string {
+  return `
+${INLINE_CODE} {
+  cursor: copy;
+}
+::highlight(${COPIED_HIGHLIGHT_NAME}) {
+  color: var(--success-text);
+  background-color: ${mix("var(--success)", 28)};
+}
+`;
+}
+
 export function buildStylesheet(config: ReadableThreadsConfig): string {
   const bold = config.intensity === "bold";
   const root = `:root { --readable-threads-todo: ${config.todoColor}; }`;
   return [
     root,
     config.styling ? stylingRules(bold) : "",
+    config.dimNarration ? dimRules(bold) : "",
+    config.clickToCopy ? clickToCopyRules() : "",
     config.keywordHighlights ? highlightRules(bold) : "",
   ].join("\n");
 }

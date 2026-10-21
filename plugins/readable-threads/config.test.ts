@@ -49,6 +49,8 @@ describe("readConfig", () => {
           styling: false,
           intensity: "bold",
           keywordHighlights: false,
+          dimNarration: false,
+          clickToCopy: false,
           customKeywords: "a, b",
         },
         { mode: "dark", theme: null },
@@ -57,6 +59,8 @@ describe("readConfig", () => {
       styling: false,
       intensity: "bold",
       keywordHighlights: false,
+      dimNarration: false,
+      clickToCopy: false,
       customKeywords: ["a", "b"],
       todoColor: "#3794ff",
     });
@@ -81,6 +85,8 @@ describe("buildStylesheet", () => {
       ...defaultConfig("light"),
       styling: false,
       keywordHighlights: false,
+      dimNarration: false,
+      clickToCopy: false,
     });
     expect(css.trim()).toBe(":root { --readable-threads-todo: #006ab1; }");
   });

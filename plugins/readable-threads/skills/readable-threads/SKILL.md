@@ -10,11 +10,21 @@ looks, never the text itself.
 
 ## What it styles
 
-| Layer               | What changes                                                                                                                                              |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Message styling     | Bold and italic colors, headings, quotes, list markers, inline code tints, a colored edge on code blocks by language, message accents, the "New" divider. |
-| Key-text highlights | In agent replies: `Todo:` in the Notes link blue, `Note:`, errors (red), warnings (amber), file paths, numbers with units, issue refs, extra keywords.    |
-| Agent hints         | Agents are told to start action items with `**Todo:**`, bold the main conclusion, mark warnings and notes, and tag code blocks.                           |
+| Layer               | What changes                                                                                                                                                      |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Message styling     | Bold and italic colors, headings, quotes, list markers, inline code tints, a colored edge on code blocks by language, the user-message bubble, the "New" divider. |
+| Key-text highlights | In agent replies: `Todo:` in the Notes link blue, `Note:`, errors (red), warnings (amber), file paths, numbers with units, issue refs, extra keywords.            |
+| Agent hints         | Agents are told to start action items with `**Todo:**`, bold the main conclusion, mark warnings and notes, and tag code blocks.                                   |
+
+Two more behaviors:
+
+- **Dimmed narration**: an agent message followed by more work (a tool row
+  or another agent message) is faded, as is expanded Thought text. The
+  final answer before your next message stays bright. Hovering a faded
+  message restores it.
+- **Click to copy**: clicking `inline code` in any message copies its text
+  and flashes it green. Code inside links and code blocks is excluded, and a
+  drag selection is not overridden.
 
 Highlights cover only agent replies, and only messages near the screen. Text
 inside code blocks and links is not highlighted. Inline code is tinted as a
@@ -28,6 +38,8 @@ Change them in Settings → Installed plugins → Readable threads, or with the 
 bb plugin config readable-threads set styling false
 bb plugin config readable-threads set intensity bold
 bb plugin config readable-threads set keywordHighlights true
+bb plugin config readable-threads set dimNarration false
+bb plugin config readable-threads set clickToCopy false
 bb plugin config readable-threads set customKeywords "rollback, migration"
 bb plugin config readable-threads set agentHints false
 ```

@@ -30,6 +30,20 @@ export default async function plugin(bb: BbPluginApi) {
         "Color Todo:, Note:, errors, warnings, file paths, numbers with units, and issue references in agent replies.",
       default: true,
     },
+    dimNarration: {
+      type: "boolean",
+      label: "Dim in-between narration",
+      description:
+        "Fade agent messages that are followed by more work, and expanded Thought text, so final answers stand out. Hover a faded message to read it at full strength.",
+      default: true,
+    },
+    clickToCopy: {
+      type: "boolean",
+      label: "Click inline code to copy",
+      description:
+        "Copy `inline code` in messages with one click. Dragging to select text still works.",
+      default: true,
+    },
     customKeywords: {
       type: "string",
       label: "Extra keywords",
