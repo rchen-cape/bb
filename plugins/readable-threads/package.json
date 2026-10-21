@@ -1,0 +1,40 @@
+{
+  "name": "bb-plugin-readable-threads",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Make thread chats easier to scan with richer styling, code colors, and key-text highlights.",
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.4.102"
+  },
+  "bb": {
+    "name": "Readable threads",
+    "description": "Make thread chats easier to scan with richer styling, code colors, and key-text highlights.",
+    "branding": {
+      "icon": "Code"
+    },
+    "server": "./server.ts",
+    "app": "./app.ts",
+    "skills": [
+      "skills"
+    ]
+  },
+  "keywords": [
+    "bb-plugin"
+  ],
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --ignore-pattern node_modules --ignore-pattern dist ."
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "workspace:*",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "jsdom": "^29.0.1",
+    "react": "^19.0.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.1"
+  }
+}
