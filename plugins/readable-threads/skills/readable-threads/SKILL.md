@@ -22,9 +22,11 @@ Two more behaviors:
   or another agent message) is faded, as is expanded Thought text. The
   final answer before your next message stays bright. Hovering a faded
   message restores it.
-- **Click to copy**: clicking `inline code` in any message copies its text
-  and flashes it green. Code inside links and code blocks is excluded, and a
-  drag selection is not overridden.
+- **Click to copy**: hovering `inline code` in any message shows a hand
+  cursor, tints the code, and after a short pause shows a "Click to copy"
+  tooltip. Clicking copies its text, flashes it green, and the tooltip changes
+  to "Copied". Code inside links and code blocks is excluded, and a drag
+  selection is not overridden.
 
 Highlights cover only agent replies, and only messages near the screen. Text
 inside code blocks and links is not highlighted. Inline code is tinted as a

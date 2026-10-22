@@ -1,4 +1,5 @@
 import type { ReadableThreadsConfig } from "./config.js";
+import { COPY_TIP_ATTRIBUTE } from "./copy-tip.js";
 import { HIGHLIGHT_KINDS, type HighlightKind } from "./rules.js";
 
 export const HIGHLIGHT_NAME_PREFIX = "readable-threads-";
@@ -15,6 +16,7 @@ const NARRATION_ROW = `:where([data-timeline-row-id*=":assistant:"]:is(:has(+ [d
 const REASONING_TEXT =
   ':where([data-timeline-row-id*=":op:reasoning:"]) :where(.whitespace-pre-wrap)';
 const INLINE_CODE = `${MESSAGE} :where(:not(pre) > code)`;
+const COPYABLE_CODE = `${INLINE_CODE}:where(:not(a *, button *, [contenteditable] *))`;
 const USER_BUBBLE =
   ":where([data-message-column] > .ml-auto > div:last-child > div:first-child)";
 const CODE_BLOCK = `${MESSAGE} :where(div:has(> pre.bb-code-highlight))`;
@@ -172,12 +174,56 @@ ${REASONING_TEXT} {
 
 function clickToCopyRules(): string {
   return `
-${INLINE_CODE} {
-  cursor: copy;
+${COPYABLE_CODE} {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+${COPYABLE_CODE}:hover {
+  background-color: ${mix("var(--timeline-accent)", 18)};
+  box-shadow: inset 0 0 0 1px ${mix("var(--timeline-accent)", 40)};
 }
 ::highlight(${COPIED_HIGHLIGHT_NAME}) {
   color: var(--success-text);
   background-color: ${mix("var(--success)", 28)};
+}
+[${COPY_TIP_ATTRIBUTE}] {
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, calc(-100% + 2px));
+  transition:
+    opacity 120ms ease-out,
+    transform 120ms ease-out;
+}
+[${COPY_TIP_ATTRIBUTE}][data-side="bottom"] {
+  transform: translate(-50%, -2px);
+}
+[${COPY_TIP_ATTRIBUTE}][data-visible] {
+  opacity: 1;
+  transform: translate(-50%, -100%);
+}
+[${COPY_TIP_ATTRIBUTE}][data-side="bottom"][data-visible] {
+  transform: translate(-50%, 0);
+}
+[${COPY_TIP_ATTRIBUTE}][data-state="copied"]::before {
+  content: "✓ ";
+}
+@media (prefers-reduced-motion: reduce) {
+  ${COPYABLE_CODE},
+  [${COPY_TIP_ATTRIBUTE}] {
+    transition: none;
+  }
 }
 `;
 }
