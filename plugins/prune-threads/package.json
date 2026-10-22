@@ -1,0 +1,42 @@
+{
+  "name": "bb-plugin-prune-threads",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Delete old, read, finished threads with nothing left to push, from one Prune button.",
+  "engines": {
+    "bb": ">=0.0",
+    "bbPluginSdk": ">=0.6.27"
+  },
+  "bb": {
+    "name": "Prune threads",
+    "description": "Delete old, read, finished threads with nothing left to push, from one Prune button.",
+    "branding": {
+      "icon": "Trash2"
+    },
+    "server": "./server.ts",
+    "app": "./app.ts",
+    "host": "./host.ts",
+    "skills": [
+      "skills"
+    ]
+  },
+  "keywords": [
+    "bb-plugin"
+  ],
+  "scripts": {
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --ignore-pattern node_modules --ignore-pattern dist ."
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "workspace:*",
+    "@types/node": "^22.0.0",
+    "jsdom": "^29.0.1",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^4.1.1"
+  }
+}
